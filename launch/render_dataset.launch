@@ -1,0 +1,17 @@
+<launch>
+  <!-- DVS simulator using a sequence of images -->
+  <node name="" pkg="dvs_simulator_py" type="render_dataset.py" output="screen">
+  
+    <!-- Dataset parameters -->
+    
+    <param name="scene_name" value="flying_room" />
+    <param name="dataset_name" value="flying_room_mosaic" />
+    
+    <!-- You can optionally load a camera trajectory from a file by setting
+         the key "trajectory_path". If it is not set, the camera keyframes
+         set in the scene will be used -->
+    <!-- <param name="trajectory_path" value="/path/to/trajectory.txt" /> -->
+    
+  </node>
+  
+</launch>

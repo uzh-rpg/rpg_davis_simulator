@@ -1,0 +1,32 @@
+  <launch>
+  <!-- DVS simulator using a sequence of images -->
+  <node name="" pkg="dvs_simulator_py" type="dvs_simulator.py" output="screen">
+  
+    <!-- Dataset parameters -->
+    <param name="dataset_name" value="one_textured_plane_helicoidal" />
+    
+    <!-- DAVIS parameters -->
+    <param name="contrast_p" value="0.8" />
+    
+    <param name="event_streaming_rate" value="300.0" />
+    <param name="image_streaming_rate" value="40.0" />
+    
+    <param name="write_to_bag" value="True" />
+    
+  </node>
+  
+  <!-- visualization -->
+  <node name="dvs_renderer_left" pkg="dvs_renderer" type="dvs_renderer" output="screen">
+    <param name="display_method" value="red-blue"/>
+    <remap from="events" to="/dvs/events" />
+    <remap from="image" to="/dvs/image_raw" />
+    <remap from="dvs_rendering" to="dvs_rendering" />
+  </node>
+
+
+  <!-- display -->
+  <node name="image_view_left" pkg="image_view" type="image_view">
+  	<remap from="image" to="dvs_rendering"/>
+  </node>
+
+</launch>
