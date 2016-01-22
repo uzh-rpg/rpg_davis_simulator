@@ -57,8 +57,8 @@ def motion_vector_numeric(cam, u, v, Z, frame_id, t, positions, quaternions):
     
     u_t_dt, res = cam.project(p_t_dt)
     
-    if not res:
-        raise RuntimeWarning('Projection in next frame does not fall on image plane')
+#    if not res:
+#        raise RuntimeWarning('Projection in next frame (id = %d) does not fall on image plane' % (frame_id+1))
         
     return (u_t_dt - u_t) / dt
 
@@ -91,6 +91,7 @@ if __name__ == '__main__':
     dataset_name = 'one_textured_plane_helicoidal'
     interval_between_images = 24
     write_motion_field = True
+    check_analytic_motion_field = False
     
     dataset_dir = os.path.join(rospack.get_path('rpg_datasets'), 'DVS', 'synthetic', 'full_datasets', dataset_name, 'data')
     
@@ -126,11 +127,20 @@ if __name__ == '__main__':
             ang_vel = w_body[frame_id]
             
             motion_field = np.zeros((height, width, 2))
+            
+            if check_analytic_motion_field:
+                motion_field_numeric = np.zeros((height, width, 2))
+                
             for u in range(width):
                 for v in range(height):
                     Z = z[v,u]                            
                     motion_field[v,u,:] = motion_vector_analytic(cam, u, v, Z, lin_vel, ang_vel)
-                    #motion_field[v,u,:] = motion_vector_numeric(cam, u, v, Z, frame_id, t, positions, quaternions)
+                    
+                    if check_analytic_motion_field:
+                        motion_field_numeric[v,u,:] = motion_vector_numeric(cam, u, v, Z, frame_id, t, positions, orientations)
+                        
+            if check_analytic_motion_field and not np.allclose(motion_field, motion_field_numeric, atol=1.0):
+                print('Warning: analytical and numeric motion fields differ at frame %d' % frame_id)
             
             img = dataset_utils.extract_grayscale(exr_img)
             ax.imshow(img, cmap = cm.Greys_r)

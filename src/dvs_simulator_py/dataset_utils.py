@@ -51,8 +51,8 @@ def parse_dataset(dataset_dir):
    
    
    
-# Linear color space to sRGB
-# https://en.wikipedia.org/wiki/SRGB#The_forward_transformation_.28CIE_xyY_or_CIE_XYZ_to_sRGB.29
+""" Linear color space to sRGB
+    https://en.wikipedia.org/wiki/SRGB#The_forward_transformation_.28CIE_xyY_or_CIE_XYZ_to_sRGB.29 """
 def lin2srgb(c):
     a = 0.055
     t = 0.0031308
