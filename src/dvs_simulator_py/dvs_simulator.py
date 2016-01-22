@@ -3,14 +3,12 @@
 import rospy
 import rospkg
 import rosbag
-import cv2
-import yaml
 import OpenEXR
-import Imath
 import numpy as np
 import os.path
 import time
 
+from dvs_simulator_py import dataset_utils
 from std_msgs.msg import Float32
 from dvs_msgs.msg import Event, EventArray
 from geometry_msgs.msg import PoseStamped
@@ -19,14 +17,13 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 
 
-def make_camera_msg(cam_data):
+def make_camera_msg(cam):
     camera_info_msg = CameraInfo()
-    fx = cam_data['cam_fx']
-    fy = cam_data['cam_fy']
-    cx = cam_data['cam_cx']
-    cy = cam_data['cam_cy']
-    camera_info_msg.width = cam_data['cam_width']
-    camera_info_msg.height = cam_data['cam_height']
+    width, height = cam.width, cam.height
+    fx, fy = cam.focal_length
+    cx, cy = cam.principle_point
+    camera_info_msg.width = width
+    camera_info_msg.height = height
     camera_info_msg.K = [fx, 0, cx,
                          0, fy, cy,
                          0, 0, 1]
@@ -40,17 +37,17 @@ def make_camera_msg(cam_data):
     
     
     
-def make_pose_msg(pose, timestamp):
+def make_pose_msg(position, orientation, timestamp):
     pose_msg = PoseStamped()
     pose_msg.header.stamp = timestamp
     pose_msg.header.frame_id = '/dvs_simulator'
-    pose_msg.pose.position.x = pose[0]
-    pose_msg.pose.position.y = pose[1]
-    pose_msg.pose.position.z = pose[2]
-    pose_msg.pose.orientation.x = pose[3]
-    pose_msg.pose.orientation.y = pose[4]
-    pose_msg.pose.orientation.z = pose[5]
-    pose_msg.pose.orientation.w = pose[6]
+    pose_msg.pose.position.x = position[0]
+    pose_msg.pose.position.y = position[1]
+    pose_msg.pose.position.z = position[2]
+    pose_msg.pose.orientation.x = orientation[0]
+    pose_msg.pose.orientation.y = orientation[1]
+    pose_msg.pose.orientation.z = orientation[2]
+    pose_msg.pose.orientation.w = orientation[3]
     return pose_msg
 
 
@@ -89,88 +86,12 @@ class dvs_simulator:
             
         return events
         
-
-# Linear color space to sRGB
-# https://en.wikipedia.org/wiki/SRGB#The_forward_transformation_.28CIE_xyY_or_CIE_XYZ_to_sRGB.29
-def lin2srgb(c):
-    a = 0.055
-    t = 0.0031308
-    c[c <= t] = 12.92 * c[c <= t]
-    c[c > t] = (1+a)*np.power(c[c > t], 1.0/2.4) - a
-    return c
     
     
 def safe_log(img):
     eps = 0.001
     return np.log(eps + img)
-
-
-def extract_grayscale(img, map_to_srgb=False):
-  dw = img.header()['dataWindow']
-
-  size = (dw.max.x - dw.min.x + 1, dw.max.y - dw.min.y + 1)
-  precision = Imath.PixelType(Imath.PixelType.FLOAT)
-  R = img.channel('R', precision)
-  G = img.channel('G', precision)
-  B = img.channel('B', precision)
   
-  r = np.fromstring(R, dtype = np.float32)
-  g = np.fromstring(G, dtype = np.float32)
-  b = np.fromstring(B, dtype = np.float32)
-  
-  r.shape = (size[1], size[0])
-  g.shape = (size[1], size[0])
-  b.shape = (size[1], size[0])
-  
-  if map_to_srgb:
-      r = lin2srgb(r)
-      g = lin2srgb(g)
-      b = lin2srgb(b)
-  
-  rgb = cv2.merge([b, g, r])
-  grayscale = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
-
-  return grayscale
-  
-
-
-def extract_depth(img):
-  dw = img.header()['dataWindow']
-  size = (dw.max.x - dw.min.x + 1, dw.max.y - dw.min.y + 1)
-  precision = Imath.PixelType(Imath.PixelType.FLOAT)
-  Z = img.channel('Z', precision)
-  z = np.fromstring(Z, dtype = np.float32)
-  z.shape = (size[1], size[0])
-  return z
-    
-    
-
-def parse_dataset(dataset_dir):
-    
-     # Parse camera calibration
-    cam_file = open('%s/camera.yaml' % dataset_dir)
-    cam_data = yaml.safe_load(cam_file)
-
-    image_data = {}
-
-    # Parse image paths       
-    lines = [line.rstrip('\n') for line in open('%s/images.txt' % dataset_dir)]
-    for line in lines:
-        img_id, img_timestamp, img_path = line.split(' ')
-        image_data[int(img_id)] = (rospy.Time(float(img_timestamp)), img_path)
-    
-        
-    # Parse camera poses
-    lines = [line.rstrip('\n') for line in open('%s/trajectory.txt' % dataset_dir)]
-    for line in lines:
-        splitted = line.split(' ')
-        img_id = int(splitted[0])
-        translation = [float(i) for i in splitted[1:4]]
-        orientation = [float(i) for i in splitted[4:]]
-        image_data[img_id] += (translation + orientation, )
-        
-    return image_data, cam_data
-
 
 
 if __name__ == '__main__':
@@ -179,7 +100,7 @@ if __name__ == '__main__':
     rospack = rospkg.RosPack()
 
     # Load simulator parameters
-    dataset_name = rospy.get_param('dataset_name', 'dvs_full_mosaic')
+    dataset_name = rospy.get_param('dataset_name', 'flying_room_mosaic')
     cp = rospy.get_param('contrast_p', 0.15)
     cm = rospy.get_param('contrast_m', -cp)
     sigp = rospy.get_param('sigma_p', 0.0)
@@ -202,8 +123,8 @@ if __name__ == '__main__':
     
     # Parse dataset
     dataset_dir = os.path.join(rospack.get_path('rpg_datasets'), 'DVS', 'synthetic', 'full_datasets', dataset_name, 'data')
-    image_data, cam_data = parse_dataset(dataset_dir)    
-    camera_info_msg = make_camera_msg(cam_data)
+    t, img_paths, positions, orientations, cam = dataset_utils.parse_dataset(dataset_dir)   
+    camera_info_msg = make_camera_msg(cam)
     
     # Prepare publishers
     bridge = CvBridge()
@@ -220,10 +141,9 @@ if __name__ == '__main__':
         bag = rosbag.Bag('%s/%s-%s.bag' % (bag_dir, dataset_name, time.strftime("%Y%m%d-%H%M%S")), 'w')
     
     # Initialize DVS
-    first_frame = image_data.values()[0]
-    exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, first_frame[1]))
-    init_sensor = safe_log(extract_grayscale(exr_img))
-    init_time = first_frame[0]
+    exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[0]))
+    init_sensor = safe_log(dataset_utils.extract_grayscale(exr_img))
+    init_time = rospy.Time(t[0])
     last_pub_img_timestamp = init_time
     last_pub_event_timestamp = init_time
     events = []
@@ -242,21 +162,21 @@ if __name__ == '__main__':
             rate.sleep()
 
     # Start simulation
-    for frame in image_data.itervalues():
+    for frame_id in range(1, len(t)):
         
         if rospy.is_shutdown():
             break
         
-        timestamp, img_path, pose = frame[:3]
+        timestamp = rospy.Time(t[frame_id])
         
         #rospy.loginfo('Processing frame at time: %f' % timestamp.to_sec())
             
         # publish pose
         if pose_pub.get_num_connections() > 0:
-            pose_pub.publish(make_pose_msg(pose, timestamp))
+            pose_pub.publish(make_pose_msg(positions[frame_id], orientations[frame_id], timestamp))
         
         if write_to_bag:
-            bag.write(topic='/dvs/pose', msg=make_pose_msg(pose, timestamp), t=timestamp)
+            bag.write(topic='/dvs/pose', msg=make_pose_msg(positions[frame_id], orientations[frame_id], timestamp), t=timestamp)
             
         # publish camera_info
         if camera_info_pub.get_num_connections() > 0:
@@ -265,8 +185,8 @@ if __name__ == '__main__':
         if write_to_bag:
             bag.write(topic='/dvs/camera_info', msg=camera_info_msg, t=timestamp)
         
-        exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_path))
-        img = extract_grayscale(exr_img)
+        exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[frame_id]))
+        img = dataset_utils.extract_grayscale(exr_img)
         
         
         if timestamp - last_pub_img_timestamp > delta_image or timestamp == init_time:
@@ -284,7 +204,7 @@ if __name__ == '__main__':
                     
             # publish depth_map
             if write_to_bag or depthmap_pub.get_num_connections() > 0:
-                z = extract_depth(exr_img)
+                z = dataset_utils.extract_depth(exr_img)
                 depth_msg = bridge.cv2_to_imgmsg(z, '32FC1')
                 depth_msg.header.stamp = timestamp
                 try:
@@ -306,8 +226,8 @@ if __name__ == '__main__':
         if timestamp - last_pub_event_timestamp > delta_event:
             event_array = EventArray()
             event_array.header.stamp = timestamp
-            event_array.width = cam_data['cam_width']
-            event_array.height = cam_data['cam_height']
+            event_array.width = cam.width
+            event_array.height = cam.height
             event_array.events = events
             event_pub.publish(event_array)
             
