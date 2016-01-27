@@ -6,6 +6,7 @@ import sys
 sys.path.append('/usr/lib/python3/dist-packages') # Add python3 packages to the environment
 import mathutils
 import bpy
+import yaml
 from math import *
 
 def fov_to_focal(width, angle_rad):
