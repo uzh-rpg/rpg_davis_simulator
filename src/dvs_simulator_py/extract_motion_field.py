@@ -63,6 +63,17 @@ def motion_vector_numeric(cam, u, v, Z, frame_id, t, positions, quaternions):
     return (u_t_dt - u_t) / dt
 
 
+""" Compute motion field given Z-depth map, camera calibration and linear/angular velocities """
+def compute_motion_field(cam, z, lin_vel, ang_vel):
+    motion_field = np.zeros(z.shape + (2,), np.float64)
+    for v in range(z.shape[0]):
+        for u in range(z.shape[1]):
+            Z = z[v,u]
+            motion_field[v,u,:] = motion_vector_analytic(cam, u, v, Z, lin_vel, ang_vel)
+    return motion_field
+
+
+
 def plot_velocities(t, v_world, w_body, stride):
     plt.figure(figsize=(6,8))
     plt.subplot(2,1,1)
@@ -88,7 +99,7 @@ if __name__ == '__main__':
     plt.close('all')
     
     """ User-defined parameters """
-    dataset_name = 'one_textured_plane_helicoidal'
+    dataset_name = 'one_textured_plane_rotation'
     interval_between_images = 24
     write_motion_field = True
     check_analytic_motion_field = False
@@ -143,7 +154,7 @@ if __name__ == '__main__':
                 print('Warning: analytical and numeric motion fields differ at frame %d' % frame_id)
             
             img = dataset_utils.extract_grayscale(exr_img)
-            ax.imshow(img, cmap = cm.Greys_r)
+            ax.imshow(img, cmap = cm.Greys_r, interpolation='none')
             
             ax.quiver(X[m:-m:s, m:-m:s], Y[m:-m:s, m:-m:s], motion_field[m:-m:s, m:-m:s, 0], -motion_field[m:-m:s, m:-m:s, 1],
                        color='g',
