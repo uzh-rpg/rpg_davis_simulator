@@ -7,6 +7,7 @@ import OpenEXR
 import numpy as np
 import os.path
 import time
+import cv2
 
 from dvs_simulator_py import dataset_utils
 from std_msgs.msg import Float32
@@ -63,7 +64,7 @@ def make_event(x, y, ts, pol):
 
 class dvs_simulator:
     def __init__(self, init_sensor, C):
-        self.sensor_ = init_sensor
+        self.sensor_ = init_sensor.copy()
         self.C_ = C
 
     def update_sensor(self, time, logI):        
@@ -75,12 +76,12 @@ class dvs_simulator:
         events = []
         
         # positive events
-        Y, X = np.where(diff > self.C_)
+        Y, X = np.where(diff >= self.C_)
         for i in range(len(X)):
             events.append(make_event(X[i], Y[i], time, True))
 
         # negative events
-        Y, X = np.where(diff < -self.C_)
+        Y, X = np.where(diff <= -self.C_)
         for i in range(len(X)):
             events.append(make_event(X[i], Y[i], time, False))
             
@@ -105,6 +106,8 @@ if __name__ == '__main__':
     cm = rospy.get_param('contrast_m', -cp)
     sigp = rospy.get_param('sigma_p', 0.0)
     sigm = rospy.get_param('sigma_m', 0.0)
+    blur_image = rospy.get_param('blur_image', False)
+    blur_size = rospy.get_param('blur_size', 5)
     
     event_streaming_rate = rospy.get_param('event_streaming_rate', 300)
     image_streaming_rate = rospy.get_param('image_streaming_rate', 24)
@@ -142,7 +145,13 @@ if __name__ == '__main__':
     
     # Initialize DVS
     exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[0]))
-    init_sensor = safe_log(dataset_utils.extract_grayscale(exr_img))
+    
+    img = dataset_utils.extract_grayscale(exr_img)
+    
+    if blur_image:
+        img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
+    
+    init_sensor = safe_log(img)
     init_time = rospy.Time(t[0])
     last_pub_img_timestamp = init_time
     last_pub_event_timestamp = init_time
@@ -188,6 +197,9 @@ if __name__ == '__main__':
         exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[frame_id]))
         img = dataset_utils.extract_grayscale(exr_img)
         
+        if blur_image:
+            img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
+        
         
         if timestamp - last_pub_img_timestamp > delta_image or timestamp == init_time:
             # publish image_raw
@@ -218,8 +230,8 @@ if __name__ == '__main__':
             last_pub_img_timestamp = timestamp
         
         # compute events for this frame
-        logI = safe_log(img)
-        events_cur = dvs_sim.update_sensor(timestamp, logI)
+        img = safe_log(img)
+        events_cur = dvs_sim.update_sensor(timestamp, img)
         events = events + events_cur
         
         # publish events
