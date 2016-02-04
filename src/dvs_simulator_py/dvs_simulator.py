@@ -8,6 +8,7 @@ import numpy as np
 import os.path
 import time
 import cv2
+import math
 
 from dvs_simulator_py import dataset_utils
 from std_msgs.msg import Float32
@@ -16,6 +17,71 @@ from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import CameraInfo
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
+
+
+class DvsSimulator:
+    
+    def __init__(self, initial_time, initial_values, C):
+        assert(C > 0)
+        self.C = C
+        assert(initial_values.shape[0] > 0)
+        assert(initial_values.shape[1] > 0)
+        self.height = initial_values.shape[0]
+        self.width = initial_values.shape[1]
+        self.reference_values = initial_values.copy()
+        self.It_array = initial_values.copy()
+        self.t = initial_time
+        
+    def update(self, t_dt, It_dt_array):
+
+        delta_t = t_dt-self.t
+        assert(delta_t > 0)
+        
+        current_events = []
+        for u in range(self.width):
+            for v in range(self.height):
+                events_for_px = []
+                It = self.It_array[v,u]
+                It_dt = It_dt_array[v,u]
+                previous_crossing = self.reference_values[v,u]
+                
+                
+                tol = 1e-6
+                if math.fabs(It-It_dt) > tol: 
+                    
+                    polarity = +1 if It_dt >= It else -1
+                    
+                    list_crossings = []
+                    all_crossings_found = False
+                    cur_crossing = previous_crossing
+                    while not all_crossings_found:
+                        cur_crossing += polarity * self.C
+                        if polarity > 0:
+                            if cur_crossing > It and cur_crossing <= It_dt:
+                                list_crossings.append(cur_crossing)
+                            else:
+                                all_crossings_found = True
+                        else:
+                            if cur_crossing < It and cur_crossing >= It_dt:
+                                list_crossings.append(cur_crossing)
+                            else:
+                                all_crossings_found = True
+                                
+                    for crossing in list_crossings:
+                        te = self.t + (crossing-It) * delta_t / (It_dt-It)
+                        events_for_px.append(make_event(u,v,te,polarity>0))
+                        
+                    current_events += events_for_px
+                        
+                    if bool(list_crossings):
+                        if polarity > 0:
+                            self.reference_values[v,u] = max(list_crossings)
+                        else:
+                            self.reference_values[v,u] = min(list_crossings)
+        
+        self.It_array = It_dt_array.copy()
+        
+        return current_events
 
 
 def make_camera_msg(cam):
@@ -57,36 +123,9 @@ def make_event(x, y, ts, pol):
     e = Event()
     e.x = x
     e.y = y
-    e.ts = ts
+    e.ts = rospy.Time(secs=ts)
     e.polarity = pol
     return e
-
-
-class dvs_simulator:
-    def __init__(self, init_sensor, C):
-        self.sensor_ = init_sensor.copy()
-        self.C_ = C
-
-    def update_sensor(self, time, logI):        
-        
-        diff = logI - self.sensor_
-        events_triggered = np.abs(diff) > self.C_
-        self.sensor_[events_triggered] = logI[events_triggered]
-        
-        events = []
-        
-        # positive events
-        Y, X = np.where(diff >= self.C_)
-        for i in range(len(X)):
-            events.append(make_event(X[i], Y[i], time, True))
-
-        # negative events
-        Y, X = np.where(diff <= -self.C_)
-        for i in range(len(X)):
-            events.append(make_event(X[i], Y[i], time, False))
-            
-        return events
-        
     
     
 def safe_log(img):
@@ -126,7 +165,7 @@ if __name__ == '__main__':
     
     # Parse dataset
     dataset_dir = os.path.join(rospack.get_path('rpg_datasets'), 'DVS', 'synthetic', 'full_datasets', dataset_name, 'data')
-    t, img_paths, positions, orientations, cam = dataset_utils.parse_dataset(dataset_dir)   
+    times, img_paths, positions, orientations, cam = dataset_utils.parse_dataset(dataset_dir)   
     camera_info_msg = make_camera_msg(cam)
     
     # Prepare publishers
@@ -152,11 +191,14 @@ if __name__ == '__main__':
         img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
     
     init_sensor = safe_log(img)
-    init_time = rospy.Time(t[0])
+    init_time = rospy.Time(times[0])
     last_pub_img_timestamp = init_time
     last_pub_event_timestamp = init_time
     events = []
-    dvs_sim = dvs_simulator(init_sensor, cp)
+    
+    # Init simulator
+    reference_values = init_sensor.copy()
+    It_array = init_sensor.copy()
     
     if write_to_bag:
         bag.write(topic='/dvs/contrast_p', msg=Float32(cp), t=init_time)
@@ -171,14 +213,14 @@ if __name__ == '__main__':
             rate.sleep()
 
     # Start simulation
-    for frame_id in range(1, len(t)):
+    for frame_id in range(1, len(times)):
         
         if rospy.is_shutdown():
             break
         
-        timestamp = rospy.Time(t[frame_id])
+        timestamp = rospy.Time(times[frame_id])
         
-        #rospy.loginfo('Processing frame at time: %f' % timestamp.to_sec())
+        rospy.loginfo('Processing frame at time: %f' % timestamp.to_sec())
             
         # publish pose
         if pose_pub.get_num_connections() > 0:
@@ -231,8 +273,59 @@ if __name__ == '__main__':
         
         # compute events for this frame
         img = safe_log(img)
-        events_cur = dvs_sim.update_sensor(timestamp, img)
-        events = events + events_cur
+        
+        # for each pixel, generate events
+        current_events = []
+        for u in range(img.shape[1]):
+            for v in range(img.shape[0]):
+                events_for_px = []
+                t_dt = times[frame_id]
+                t = times[frame_id-1]
+                It = It_array[v,u]
+                It_dt = img[v,u]
+                previous_crossing = reference_values[v,u]
+                
+                
+                tol = 0.0001
+                if math.fabs(It-It_dt) > tol: 
+                    pol = (It_dt >= It)
+                    
+                    list_crossings = []
+                    all_crossings_found = False
+                    cur_crossing = previous_crossing
+                    while not all_crossings_found:
+                        if pol:
+                            cur_crossing = cur_crossing + cp
+                            if cur_crossing > It and cur_crossing <= It_dt:
+                                list_crossings.append(cur_crossing)
+                            else:
+                                all_crossings_found = True
+                        else:
+                            cur_crossing = cur_crossing - cp
+                            if cur_crossing < It and cur_crossing >= It_dt:
+                                list_crossings.append(cur_crossing)
+                            else:
+                                all_crossings_found = True
+                                
+                    for crossing in list_crossings:            
+                        if(pol):
+                            assert(crossing > It and crossing <= It_dt)
+                        else:
+                            assert(crossing < It and crossing >= It_dt)
+                        
+                        te = t + (crossing-It)*(t_dt-t)/(It_dt-It)
+                        events_for_px.append(make_event(u,v,te,pol))
+                        
+                    current_events += events_for_px
+                        
+                    if bool(list_crossings):
+                        if pol:
+                            reference_values[v,u] = max(list_crossings)
+                        else:
+                            reference_values[v,u] = min(list_crossings)
+        
+        It_array = img.copy()
+        events = events + current_events
         
         # publish events
         if timestamp - last_pub_event_timestamp > delta_event:
