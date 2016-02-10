@@ -11,7 +11,8 @@ import cv2
 import math
 
 from dvs_simulator_py import dataset_utils
-from std_msgs.msg import Float32
+from dvs_simulator_py import extract_motion_field as mf
+from std_msgs.msg import Float32, Int16
 from dvs_msgs.msg import Event, EventArray
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import CameraInfo
@@ -33,6 +34,8 @@ class DvsSimulator:
         self.t = initial_time
         
     def update(self, t_dt, It_dt_array):
+        
+        assert(It_dt_array.shape == self.It_array.shape)
 
         delta_t = t_dt-self.t
         assert(delta_t > 0)
@@ -74,12 +77,10 @@ class DvsSimulator:
                     current_events += events_for_px
                         
                     if bool(list_crossings):
-                        if polarity > 0:
-                            self.reference_values[v,u] = max(list_crossings)
-                        else:
-                            self.reference_values[v,u] = min(list_crossings)
+                        self.reference_values[v,u] = list_crossings[-1]
         
         self.It_array = It_dt_array.copy()
+        self.t = t_dt
         
         return current_events
 
@@ -140,17 +141,17 @@ if __name__ == '__main__':
     rospack = rospkg.RosPack()
 
     # Load simulator parameters
-    dataset_name = rospy.get_param('dataset_name', 'flying_room_mosaic')
+    dataset_name = rospy.get_param('dataset_name', 'one_textured_plane_translation_blurry')
     cp = rospy.get_param('contrast_p', 0.15)
     cm = rospy.get_param('contrast_m', -cp)
     sigp = rospy.get_param('sigma_p', 0.0)
     sigm = rospy.get_param('sigma_m', 0.0)
-    blur_image = rospy.get_param('blur_image', False)
-    blur_size = rospy.get_param('blur_size', 5)
+    blur_size = rospy.get_param('blur_size', 0)
     
     event_streaming_rate = rospy.get_param('event_streaming_rate', 300)
     image_streaming_rate = rospy.get_param('image_streaming_rate', 24)
     write_to_bag = rospy.get_param('write_to_bag', False)
+    check_optical_flow = rospy.get_param('check_optical_flow', False)
     
     rospy.loginfo('Dataset name: %s' % dataset_name)
     rospy.loginfo('Contrast threshold (+): %f' % cp)
@@ -167,6 +168,9 @@ if __name__ == '__main__':
     dataset_dir = os.path.join(rospack.get_path('rpg_datasets'), 'DVS', 'synthetic', 'full_datasets', dataset_name, 'data')
     times, img_paths, positions, orientations, cam = dataset_utils.parse_dataset(dataset_dir)   
     camera_info_msg = make_camera_msg(cam)
+    
+    if check_optical_flow:
+        _, v_body, w_body = dataset_utils.linear_angular_velocity(times, positions, orientations, stride=1)
     
     # Prepare publishers
     bridge = CvBridge()
@@ -187,7 +191,7 @@ if __name__ == '__main__':
     
     img = dataset_utils.extract_grayscale(exr_img)
     
-    if blur_image:
+    if blur_size > 0:
         img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
     
     init_sensor = safe_log(img)
@@ -197,14 +201,14 @@ if __name__ == '__main__':
     events = []
     
     # Init simulator
-    reference_values = init_sensor.copy()
-    It_array = init_sensor.copy()
+    sim = DvsSimulator(init_time.to_sec(), init_sensor, cp)
     
     if write_to_bag:
         bag.write(topic='/dvs/contrast_p', msg=Float32(cp), t=init_time)
         bag.write(topic='/dvs/contrast_m', msg=Float32(cm), t=init_time)
         bag.write(topic='/dvs/sigma2_p', msg=Float32(sigp), t=init_time)
         bag.write(topic='/dvs/sigma2_m', msg=Float32(sigm), t=init_time)
+        bag.write(topic='/dvs/blur_size', msg=Int16(blur_size), t=init_time)
            
     if not write_to_bag:
         # Do not start publishing events if no one is listening
@@ -239,9 +243,9 @@ if __name__ == '__main__':
         exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[frame_id]))
         img = dataset_utils.extract_grayscale(exr_img)
         
-        if blur_image:
+        if blur_size > 0:
             img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
-        
+            
         
         if timestamp - last_pub_img_timestamp > delta_image or timestamp == init_time:
             # publish image_raw
@@ -273,62 +277,29 @@ if __name__ == '__main__':
         
         # compute events for this frame
         img = safe_log(img)
-        
-        # for each pixel, generate events
-        current_events = []
-        for u in range(img.shape[1]):
-            for v in range(img.shape[0]):
-                events_for_px = []
-                t_dt = times[frame_id]
-                t = times[frame_id-1]
-                It = It_array[v,u]
-                It_dt = img[v,u]
-                previous_crossing = reference_values[v,u]
-                
-                
-                tol = 0.0001
-                if math.fabs(It-It_dt) > tol: 
-                    pol = (It_dt >= It)
-                    
-                    list_crossings = []
-                    all_crossings_found = False
-                    cur_crossing = previous_crossing
-                    while not all_crossings_found:
-                        if pol:
-                            cur_crossing = cur_crossing + cp
-                            if cur_crossing > It and cur_crossing <= It_dt:
-                                list_crossings.append(cur_crossing)
-                            else:
-                                all_crossings_found = True
-                        else:
-                            cur_crossing = cur_crossing - cp
-                            if cur_crossing < It and cur_crossing >= It_dt:
-                                list_crossings.append(cur_crossing)
-                            else:
-                                all_crossings_found = True
-                                
-                    for crossing in list_crossings:            
-                        if(pol):
-                            assert(crossing > It and crossing <= It_dt)
-                        else:
-                            assert(crossing < It and crossing >= It_dt)
-                        
-                        te = t + (crossing-It)*(t_dt-t)/(It_dt-It)
-                        events_for_px.append(make_event(u,v,te,pol))
-                        
-                    current_events += events_for_px
-                        
-                    if bool(list_crossings):
-                        if pol:
-                            reference_values[v,u] = max(list_crossings)
-                        else:
-                            reference_values[v,u] = min(list_crossings)
-        
-        It_array = img.copy()
+        current_events = sim.update(timestamp.to_sec(), img)
         events = events + current_events
+        
+        # check if predicted optical flow is below the contrast threshold        
+        if check_optical_flow:
+            try:
+                lin_vel, ang_vel = v_body[frame_id], w_body[frame_id]
+            except IndexError:
+                lin_vel, ang_vel = v_body[frame_id-1], w_body[frame_id-1]
+                
+            z = dataset_utils.extract_depth(exr_img)
+            motion_field = mf.compute_motion_field(cam, z, lin_vel, ang_vel)
+            gradient = dataset_utils.compute_gradient(img)
+            gradient = np.reshape(gradient, (gradient.shape[0]*gradient.shape[1],2))
+            motion_field = np.reshape(motion_field, (motion_field.shape[0]*motion_field.shape[1],2))
+            dt = times[frame_id]-times[frame_id-1]
+            deltaI = - (motion_field[:,0] * gradient[:,0] + motion_field[:,1] * gradient[:,1]) * dt
+            assert(np.max(deltaI) <= cp)
+            assert(np.min(deltaI) >= -cp)
         
         # publish events
         if timestamp - last_pub_event_timestamp > delta_event:
+            events = sorted(events, key=lambda e: e.ts)
             event_array = EventArray()
             event_array.header.stamp = timestamp
             event_array.width = cam.width
