@@ -278,7 +278,7 @@ if __name__ == '__main__':
         # compute events for this frame
         img = safe_log(img)
         current_events = sim.update(timestamp.to_sec(), img)
-        events = events + current_events
+        events += current_events
         
         # check if predicted optical flow is below the contrast threshold        
         if check_optical_flow:
