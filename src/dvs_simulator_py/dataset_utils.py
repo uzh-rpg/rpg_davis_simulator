@@ -2,10 +2,12 @@
 
 import yaml
 import cv2
+import OpenEXR
 import Imath
 import numpy as np
 from vikit_py import transformations as transformations
 from vikit_py import pinhole_camera  
+from math import fabs
 
 
 """ Parse a dataset folder """
@@ -49,6 +51,66 @@ def parse_dataset(dataset_dir):
         
     return t, img_paths, positions, orientations, cam
    
+   
+class Frame:
+    def __init__(self, frame_id, exr_path, use_log=True, blur_size=0, use_scharr=True):
+        self.frame_id = frame_id
+        self.exr_img = OpenEXR.InputFile(exr_path)
+        self.img = extract_grayscale(self.exr_img)
+        self.img = Frame.preprocess_image(self.img, use_log=True, blur_size=blur_size)
+        self.gradient = compute_gradient(self.img, use_scharr)
+        self.z = extract_depth(self.exr_img)
+    
+    
+    @staticmethod
+    def preprocess_image(img, use_log=True, blur_size=0):
+        if blur_size > 0:
+            img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
+            
+        if use_log:
+            img = safe_log(img)
+        return img
+        
+        
+
+class Trajectory:
+    def __init__(self, times, positions, orientations):
+        self.t = np.array(times)
+        self.pos = np.array(positions)
+        self.quat = np.array(orientations)
+        _, self.v_b, self.w_b = linear_angular_velocity(self.t, self.pos, self.quat, 1)
+    
+    
+    def T_w_c(self, t):
+        closest_id = self.find_closest_id(t)
+        T_w_c = transformations.matrix_from_quaternion(self.quat[closest_id])
+        T_w_c[:3,3] = self.pos[closest_id]
+        return T_w_c
+        
+        
+    def find_closest_id(self, t):
+        idx = np.searchsorted(self.t, t, side="left")
+        if fabs(t - self.t[idx-1]) < fabs(t - self.t[idx]):
+            return idx-1
+        else:
+            return idx   
+   
+   
+   
+""" Log with a small offset to allow for taking the log of zero"""
+def safe_log(img):
+    eps = 0.001
+    return np.log(eps + img)
+
+
+""" Is pixel (x,y) inside a [width x height] image? (zero-based indexing) """
+def is_within(x,y,width,height):
+    return (x >= 0 and x < width and y >= 0 and y < height)
+
+  
+""" Return normalized vector """
+def normalize(v):
+    return v / np.linalg.norm(v)
    
    
 """ Linear color space to sRGB
@@ -116,3 +178,19 @@ def linear_angular_velocity(t, positions, orientations, stride):
         w_body[i,:] = 1.0 / dt * transformations.logmap_so3(R_wb_t.transpose().dot(R_wb_t_dt))
         
     return v_world, v_body, w_body
+    
+
+""" Compute horizontal and vertical gradients """
+def compute_gradient(img, use_scharr=True):
+    if use_scharr:
+        norm_factor = 32
+        gradx = cv2.Scharr(img, cv2.CV_32F, 1, 0, scale=1.0/norm_factor)
+        grady = cv2.Scharr(img, cv2.CV_32F, 0, 1, scale=1.0/norm_factor)
+    else:
+        kx = cv2.getDerivKernels(1, 0, ksize=1, normalize=True)
+        ky = cv2.getDerivKernels(0, 1, ksize=1, normalize=True)
+        gradx = cv2.sepFilter2D(img, cv2.CV_32F, kx[0], kx[1])
+        grady = cv2.sepFilter2D(img, cv2.CV_32F, ky[0], ky[1])
+    
+    gradient = np.dstack([gradx, grady])
+    return gradient

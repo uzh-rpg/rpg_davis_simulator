@@ -127,11 +127,6 @@ def make_event(x, y, ts, pol):
     e.ts = rospy.Time(secs=ts)
     e.polarity = pol
     return e
-    
-    
-def safe_log(img):
-    eps = 0.001
-    return np.log(eps + img)
   
 
 
@@ -194,7 +189,7 @@ if __name__ == '__main__':
     if blur_size > 0:
         img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
     
-    init_sensor = safe_log(img)
+    init_sensor = dataset_utils.safe_log(img)
     init_time = rospy.Time(times[0])
     last_pub_img_timestamp = init_time
     last_pub_event_timestamp = init_time
@@ -276,7 +271,7 @@ if __name__ == '__main__':
             last_pub_img_timestamp = timestamp
         
         # compute events for this frame
-        img = safe_log(img)
+        img = dataset_utils.safe_log(img)
         current_events = sim.update(timestamp.to_sec(), img)
         events += current_events
         
