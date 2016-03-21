@@ -11,7 +11,7 @@ if __name__ == '__main__':
     rospy.init_node('render_dataset_node', anonymous=True)
     rospack = rospkg.RosPack()
     
-    blender_path = '/home/henri/Downloads/blender-2.75-linux-glibc211-x86_64/blender'
+    blender_path = '/usr/bin/blender'
     workspace_dir = rospack.get_path('dvs_simulator_py')
     dataset_dir = os.path.join(rospack.get_path('rpg_datasets'), 'DVS', 'synthetic')
 

@@ -2,9 +2,7 @@
 
 ## How does it work?
 
-                render_dataset.py                dvs_simulator.py
-Blender scene --------------------> DVS dataset -----------------> Rosbag
-                Geometry, Motion                    DVS params
+<img src="pipeline.png" width="500">
 
 ### Technical details
 
@@ -19,7 +17,6 @@ The data is stored as OpenEXR files, which contain the image data and depth maps
 
 - /dvs/events: event stream
 - /dvs/camera_info: camera calibration
-- /dvs/event_triggering_info: information about the DVS (contrast thresholds used, mostly)
 - /dvs/pose: groundtruth transformation T_w_cam (transforms points from camera frame to world frame)
 - /dvs/twist: linear and angular velocities, expressed in the camera coordinate frame
 - /dvs/image_raw: intensity image (grayscale, 8bits)
@@ -50,27 +47,27 @@ Source your catkin workspace:
 
 ## FAQ
 
-### "I just want a DVS dataset with groundtruth and standard parameters for the DVS"
+#### "I just want a DVS dataset with groundtruth and standard parameters for the DVS"
 
 Just use directly the rosbags. They contain the event stream, along with the groundtruth poses, raw images (DAVIS) and depth maps
 
-### "I want to use an existing scene but be able to change the DVS parameters (contrast threshold, noise, etc.)"
+#### "I want to use an existing scene but be able to change the DVS parameters (contrast threshold, noise, etc.)"
 
 You need to download a full DVS dataset, and then roslaunch the dvs_simulator (dataset path and DVS parameters are set in the launch file).
 
-### "Where do I find datasets?"
+#### "Where do I find datasets?"
 
 - Rosbags: in the [rpg_datasets]() repository (/dvs/synthetic/rosbags/)
 - Full DVS datasets: in the [rpg_datasets]() repository ('/dvs/synthetic/full_datasets/)
 - Blender scenes: in the [rpg_datasets]() repository ('/dvs/synthetic/scenes/)
 
-### "I want to change the [camera trajectory | camera calibration | scene geometry | textures]"
+#### "I want to change the [camera trajectory | camera calibration | scene geometry | textures]"
 
 You need to change this directly in the Blender scene and then render the dataset again using render_dataset.py to produce a full dataset. You will then run the simulator on this new full dataset.
 
 *Note:* you can provide the camera trajectory to render_dataset.py as a text file (with the argument 'trajectory_path' in the launch file)
 
-### "I want to create a new DVS dataset"
+#### "I want to create a new DVS dataset"
 
 Just create your scene into Blender and use render_dataset.py to render it.
 Animate the camera using the standard Blender tools (keyframes, trajectory modifiers, etc.). You can also load a camera trajectory from a text file.
@@ -81,7 +78,7 @@ Note that there are a small number of requirements for the Blender synthesizer t
 - the camera used must be 'Perspective' (other types are not supported yet)
 - 'First frame' and 'Last frame' values need to be set
 
-### "What do the depthmaps contain?"
+#### "What do the depthmaps contain?"
 
 Depthmaps are encoded as 32-bit floating-point values.
 The value encoded in the depth map depends on the render engine used by Blender.
