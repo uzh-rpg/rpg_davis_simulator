@@ -4,8 +4,8 @@
   
     <!-- Dataset parameters -->
     
-    <param name="scene_name" value="flying_room" />
-    <param name="dataset_name" value="flying_room_mosaic" />
+    <param name="scene_name" value="one_textured_plane_mountain" />
+    <param name="dataset_name" value="one_textured_plane_mountain" />
     
     <!-- You can optionally load a camera trajectory from a file by setting
          the key "trajectory_path". If it is not set, the camera keyframes

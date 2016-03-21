@@ -14,7 +14,7 @@ from dvs_simulator_py import dataset_utils
 from dvs_simulator_py import extract_motion_field as mf
 from std_msgs.msg import Float32, Int16
 from dvs_msgs.msg import Event, EventArray
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TwistStamped
 from sensor_msgs.msg import CameraInfo
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
@@ -119,6 +119,18 @@ def make_pose_msg(position, orientation, timestamp):
     return pose_msg
 
 
+def make_twist_msg(lin_vel, ang_vel, timestamp):
+    twist_msg = TwistStamped()
+    twist_msg.header.stamp = timestamp
+    twist_msg.header.frame_id = '/dvs_simulator'
+    twist_msg.twist.linear.x = lin_vel[0]
+    twist_msg.twist.linear.y = lin_vel[1]
+    twist_msg.twist.linear.z = lin_vel[2]
+    twist_msg.twist.angular.x = ang_vel[0]
+    twist_msg.twist.angular.y = ang_vel[1]
+    twist_msg.twist.angular.z = ang_vel[2]
+    return twist_msg
+    
 
 def make_event(x, y, ts, pol):
     e = Event()
@@ -136,7 +148,7 @@ if __name__ == '__main__':
     rospack = rospkg.RosPack()
 
     # Load simulator parameters
-    dataset_name = rospy.get_param('dataset_name', 'one_textured_plane_translation_blurry')
+    dataset_name = rospy.get_param('dataset_name', 'one_textured_plane_translation')
     cp = rospy.get_param('contrast_p', 0.15)
     cm = rospy.get_param('contrast_m', -cp)
     sigp = rospy.get_param('sigma_p', 0.0)
@@ -164,14 +176,14 @@ if __name__ == '__main__':
     times, img_paths, positions, orientations, cam = dataset_utils.parse_dataset(dataset_dir)   
     camera_info_msg = make_camera_msg(cam)
     
-    if check_optical_flow:
-        _, v_body, w_body = dataset_utils.linear_angular_velocity(times, positions, orientations, stride=1)
+    _, v_body, w_body = dataset_utils.linear_angular_velocity(times, positions, orientations, stride=1)
     
     # Prepare publishers
     bridge = CvBridge()
     depthmap_pub = rospy.Publisher("/dvs/depthmap", Image, queue_size=0)
     image_pub = rospy.Publisher("/dvs/image_raw", Image, queue_size=0)
     pose_pub = rospy.Publisher("/dvs/pose", PoseStamped, queue_size=0)
+    twist_pub = rospy.Publisher("/dvs/twist", TwistStamped, queue_size=0)
     camera_info_pub = rospy.Publisher("/dvs/camera_info", CameraInfo, queue_size=0)
     event_pub = rospy.Publisher("/dvs/events", EventArray, queue_size=0)
     
@@ -198,12 +210,34 @@ if __name__ == '__main__':
     # Init simulator
     sim = DvsSimulator(init_time.to_sec(), init_sensor, cp)
     
+    # Publish initial pose, image and depthmap
     if write_to_bag:
+        bag.write(topic='/dvs/pose', msg=make_pose_msg(positions[0], orientations[0], init_time), t=init_time)        
+        
         bag.write(topic='/dvs/contrast_p', msg=Float32(cp), t=init_time)
         bag.write(topic='/dvs/contrast_m', msg=Float32(cm), t=init_time)
         bag.write(topic='/dvs/sigma2_p', msg=Float32(sigp), t=init_time)
         bag.write(topic='/dvs/sigma2_m', msg=Float32(sigm), t=init_time)
         bag.write(topic='/dvs/blur_size', msg=Int16(blur_size), t=init_time)
+        
+        img_msg = bridge.cv2_to_imgmsg(np.uint8(img * 255.0), 'mono8')
+        img_msg.header.stamp = init_time
+        try:
+            image_pub.publish(img_msg)
+        except CvBridgeError as e:
+            print(e)
+                
+        bag.write(topic='/dvs/image_raw', msg=img_msg, t=init_time)
+        
+        z = dataset_utils.extract_depth(exr_img)
+        depth_msg = bridge.cv2_to_imgmsg(z, '32FC1')
+        depth_msg.header.stamp = init_time
+        try:
+            depthmap_pub.publish(depth_msg)
+        except CvBridgeError as e:
+            print(e)
+            
+        bag.write(topic='/dvs/depthmap', msg=depth_msg, t=init_time)
            
     if not write_to_bag:
         # Do not start publishing events if no one is listening
@@ -227,6 +261,12 @@ if __name__ == '__main__':
         
         if write_to_bag:
             bag.write(topic='/dvs/pose', msg=make_pose_msg(positions[frame_id], orientations[frame_id], timestamp), t=timestamp)
+            
+            try:
+                lin_vel, ang_vel = v_body[frame_id], w_body[frame_id]
+                bag.write(topic='/dvs/twist', msg=make_twist_msg(lin_vel, ang_vel, timestamp), t=timestamp)
+            except IndexError:
+                pass
             
         # publish camera_info
         if camera_info_pub.get_num_connections() > 0:

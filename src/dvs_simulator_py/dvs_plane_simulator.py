@@ -6,6 +6,7 @@ import numpy as np
 from dvs_msgs.msg import EventArray
 import math
 
+from dvs_simulator_py import dataset_utils
 from dvs_simulator_py import dvs_simulator
 from scipy.interpolate import RectBivariateSpline
 import scipy.ndimage
@@ -29,7 +30,7 @@ X, Y = np.meshgrid(np.arange(0, map_img.shape[1], 1), np.arange(0, map_img.shape
 use_log = True
 
 if use_log:
-    map_interpolator = RectBivariateSpline(Y[:,0], X[0,:], dvs_simulator.safe_log(map_img))
+    map_interpolator = RectBivariateSpline(Y[:,0], X[0,:], dataset_utils.safe_log(map_img))
 else:
     map_interpolator = RectBivariateSpline(Y[:,0], X[0,:], map_img)
 
@@ -67,7 +68,7 @@ sim = dvs_simulator.DvsSimulator(cur_time, init_sensor, C)
 events = []
 delta_t = 0.010
 
-u,v = 16, 16 # focus on I(t) for a specific pixel
+u,v = 18, 16 # focus on I(t) for a specific pixel
 I_t = []
 
 for x,y in trajectory[1:]:
@@ -75,20 +76,6 @@ for x,y in trajectory[1:]:
     cur_time += delta_t
     
     print cur_time
-
-    # publish events
-#    if cur_time - last_pub_event_timestamp > 1.0/event_framerate:
-#        event_array = EventArray()
-#        event_array.header.stamp = rospy.Time(secs=cur_time)
-#        event_array.width = dvs_size[1]
-#        event_array.height = dvs_size[0]
-#        event_array.events = events
-#        
-#        bag.write(topic='/dvs/events', msg=event_array, t=rospy.Time(secs=cur_time))
-#        
-#        events = []
-#        last_pub_event_timestamp = cur_time
-    
     
     sensor_x = np.linspace(x, x + dvs_size[1], endpoint=False, num=dvs_size[1])
     sensor_y = np.linspace(y, y + dvs_size[0], endpoint=False, num=dvs_size[0])

@@ -99,7 +99,7 @@ if __name__ == '__main__':
     plt.close('all')
     
     """ User-defined parameters """
-    dataset_name = 'drawings_walls_6dof'
+    dataset_name = 'dvs_office_desk'
     interval_between_images = 24
     write_motion_field = True
     check_analytic_motion_field = False

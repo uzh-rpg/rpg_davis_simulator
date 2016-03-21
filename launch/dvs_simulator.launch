@@ -3,15 +3,18 @@
   <node name="" pkg="dvs_simulator_py" type="dvs_simulator.py" output="screen">
   
     <!-- Dataset parameters -->
-    <param name="dataset_name" value="flying_room_mosaic" />
+    <param name="dataset_name" value="one_textured_plane_mountain" />
     
     <!-- DAVIS parameters -->
-    <param name="contrast_p" value="0.2" />
+    <param name="contrast_p" value="0.15" />
     
-    <param name="event_streaming_rate" value="300.0" />
+    <param name="blur_size" value="3" />
+    
+    <param name="event_streaming_rate" value="60.0" />
     <param name="image_streaming_rate" value="40.0" />
     
-    <param name="write_to_bag" value="False" />
+    <param name="write_to_bag" value="True" />
+    <param name="check_optical_flow" value="False" />
     
   </node>
   
