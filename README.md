@@ -2,7 +2,7 @@
 
 ## How does it work?
 
-<img src="pipeline.png" width="500">
+<img src="pipeline.png" width="675">
 
 ### Technical details
 
