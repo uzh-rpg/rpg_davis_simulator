@@ -56,9 +56,22 @@ class Frame:
     def __init__(self, frame_id, exr_path, use_log=True, blur_size=0, use_scharr=True):
         self.frame_id = frame_id
         self.exr_img = OpenEXR.InputFile(exr_path)
-        self.img = extract_grayscale(self.exr_img)
-        self.img = Frame.preprocess_image(self.img, use_log=True, blur_size=blur_size)
-        self.gradient = compute_gradient(self.img, use_scharr)
+        self.img_raw = extract_grayscale(self.exr_img)
+        
+        # self.img is actually log(eps+img), blurred
+        self.img = Frame.preprocess_image(self.img_raw.copy(), use_log=True, blur_size=blur_size)
+        
+        # self.img_raw is the non-logified image, blurred        
+        self.img_raw = Frame.preprocess_image(self.img_raw, use_log=False, blur_size=blur_size)
+        
+        # compute the gradient using
+        # nabla(log(eps+I)) = nabla(I) / (eps+I) (chain rule)
+        # (hopefully better precision than directly
+        # computing the numeric gradient of the log img)
+        eps = 0.001
+        self.gradient = compute_gradient(self.img_raw, use_scharr)
+        self.gradient[:,:,0] = self.gradient[:,:,0] / (eps+self.img_raw)
+        self.gradient[:,:,1] = self.gradient[:,:,1] / (eps+self.img_raw)
         self.z = extract_depth(self.exr_img)
     
     
@@ -125,7 +138,7 @@ def lin2srgb(c):
 
    
 
-def extract_grayscale(img):
+def extract_grayscale(img, srgb=False):
   dw = img.header()['dataWindow']
 
   size = (dw.max.x - dw.min.x + 1, dw.max.y - dw.min.y + 1)
@@ -144,6 +157,9 @@ def extract_grayscale(img):
   
   rgb = cv2.merge([b, g, r])
   grayscale = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
+  
+  if srgb:
+      grayscale = lin2srgb(grayscale)
 
   return grayscale
   

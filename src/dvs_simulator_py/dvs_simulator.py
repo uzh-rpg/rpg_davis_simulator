@@ -9,6 +9,7 @@ import os.path
 import time
 import cv2
 import math
+import random
 
 from dvs_simulator_py import dataset_utils
 from dvs_simulator_py import extract_motion_field as mf
@@ -22,9 +23,17 @@ from cv_bridge import CvBridge, CvBridgeError
 
 class DvsSimulator:
     
-    def __init__(self, initial_time, initial_values, C):
-        assert(C > 0)
-        self.C = C
+    def __init__(self, initial_time, initial_values, Cp, Cm, sigp, sigm):
+        assert(Cp > 0)
+        assert(Cm > 0)
+        assert(sigp >= 0)
+        assert(sigm >= 0)
+        self.C = {}
+        self.C[+1] = Cp
+        self.C[-1] = Cm
+        self.sig = {}
+        self.sig[+1] = sigp
+        self.sig[-1] = sigm
         assert(initial_values.shape[0] > 0)
         assert(initial_values.shape[1] > 0)
         self.height = initial_values.shape[0]
@@ -48,7 +57,6 @@ class DvsSimulator:
                 It_dt = It_dt_array[v,u]
                 previous_crossing = self.reference_values[v,u]
                 
-                
                 tol = 1e-6
                 if math.fabs(It-It_dt) > tol: 
                     
@@ -58,7 +66,9 @@ class DvsSimulator:
                     all_crossings_found = False
                     cur_crossing = previous_crossing
                     while not all_crossings_found:
-                        cur_crossing += polarity * self.C
+                        muC = polarity * self.C[polarity]
+                        delta = muC
+                        cur_crossing += delta
                         if polarity > 0:
                             if cur_crossing > It and cur_crossing <= It_dt:
                                 list_crossings.append(cur_crossing)
@@ -139,7 +149,12 @@ def make_event(x, y, ts, pol):
     e.ts = rospy.Time(secs=ts)
     e.polarity = pol
     return e
-  
+
+
+def add_noise(img, sigma):
+    img_noisy = img.copy()
+    img_noisy += np.random.normal(loc=0.0, scale=sigma, size=img.shape)
+    return img_noisy
 
 
 if __name__ == '__main__':
@@ -150,10 +165,14 @@ if __name__ == '__main__':
     # Load simulator parameters
     dataset_name = rospy.get_param('dataset_name', 'one_textured_plane_translation')
     cp = rospy.get_param('contrast_p', 0.15)
-    cm = rospy.get_param('contrast_m', -cp)
+    cm = rospy.get_param('contrast_m', cp)
     sigp = rospy.get_param('sigma_p', 0.0)
     sigm = rospy.get_param('sigma_m', 0.0)
     blur_size = rospy.get_param('blur_size', 0)
+    
+#    sigma = sigp
+    
+    srgb = False
     
     event_streaming_rate = rospy.get_param('event_streaming_rate', 300)
     image_streaming_rate = rospy.get_param('image_streaming_rate', 24)
@@ -196,7 +215,7 @@ if __name__ == '__main__':
     # Initialize DVS
     exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[0]))
     
-    img = dataset_utils.extract_grayscale(exr_img)
+    img = dataset_utils.extract_grayscale(exr_img, srgb)
     
     if blur_size > 0:
         img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
@@ -208,7 +227,7 @@ if __name__ == '__main__':
     events = []
     
     # Init simulator
-    sim = DvsSimulator(init_time.to_sec(), init_sensor, cp)
+    sim = DvsSimulator(init_time.to_sec(), init_sensor, cp, cm, sigp, sigm)
     
     # Publish initial pose, image and depthmap
     if write_to_bag:
@@ -276,7 +295,7 @@ if __name__ == '__main__':
             bag.write(topic='/dvs/camera_info', msg=camera_info_msg, t=timestamp)
         
         exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[frame_id]))
-        img = dataset_utils.extract_grayscale(exr_img)
+        img = dataset_utils.extract_grayscale(exr_img, srgb)
         
         if blur_size > 0:
             img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
@@ -312,6 +331,7 @@ if __name__ == '__main__':
         
         # compute events for this frame
         img = dataset_utils.safe_log(img)
+#        img_noisy = add_noise(img, sigma)
         current_events = sim.update(timestamp.to_sec(), img)
         events += current_events
         
