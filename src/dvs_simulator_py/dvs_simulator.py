@@ -87,9 +87,9 @@ class DvsSimulator:
 
 def make_camera_msg(cam):
     camera_info_msg = CameraInfo()
-    width, height = cam.width, cam.height
-    fx, fy = cam.focal_length
-    cx, cy = cam.principle_point
+    width, height = cam[0], cam[1]
+    fx, fy = cam[2], cam[3]
+    cx, cy = cam[4], cam[5]
     camera_info_msg.width = width
     camera_info_msg.height = height
     camera_info_msg.K = [fx, 0, cx,
@@ -337,8 +337,8 @@ if __name__ == '__main__':
             events = sorted(events, key=lambda e: e.ts)
             event_array = EventArray()
             event_array.header.stamp = timestamp
-            event_array.width = cam.width
-            event_array.height = cam.height
+            event_array.width = cam[0]
+            event_array.height = cam[1]
             event_array.events = events
             event_pub.publish(event_array)
             

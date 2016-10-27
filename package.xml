@@ -14,13 +14,11 @@
   <build_depend>geometry_msgs</build_depend>
   <build_depend>sensor_msgs</build_depend>
   <build_depend>cv_bridge</build_depend>
-  <build_depend>vikit_py</build_depend>
   <run_depend>rospy</run_depend>
   <run_depend>rospkg</run_depend>
   <run_depend>dvs_msgs</run_depend>
   <run_depend>geometry_msgs</run_depend>
   <run_depend>sensor_msgs</run_depend>
   <run_depend>cv_bridge</run_depend>
-  <run_depend>vikit_py</run_depend>
 
 </package>
