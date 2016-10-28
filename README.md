@@ -47,11 +47,11 @@ Read more about this openexr python package here: http://excamera.com/sphinx/art
 
 - Install Blender
 	
-    sudo apt-get install blender
+      sudo apt-get install blender
 
 - Install Python3
 
-    sudo apt-get install python3-dev python3-numpy python3-yaml
+      sudo apt-get install python3-dev python3-numpy python3-yaml
 
 In ``/usr/lib/python3/dist-packages`` you should now have a ``yaml`` and ``numpy`` folder. This path is added in the ``scripts/prepare_dataset.py``.
 
