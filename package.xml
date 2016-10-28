@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <package>
   <name>dvs_simulator_py</name>
-  <version>0.0.1</version>
+  <version>0.0.0</version>
   <description>Python DVS simulator</description>
 
   <maintainer email="rebecq@ifi.uzh.ch">Henri Rebecq</maintainer>
-  <license>tbd</license>
+  <license>GNU GPL</license>
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>rospy</build_depend>
@@ -20,5 +20,6 @@
   <run_depend>geometry_msgs</run_depend>
   <run_depend>sensor_msgs</run_depend>
   <run_depend>cv_bridge</run_depend>
+  <run_depend>dvs_renderer</run_depend>
 
 </package>
