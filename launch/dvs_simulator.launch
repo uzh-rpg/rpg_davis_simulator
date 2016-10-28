@@ -3,23 +3,22 @@
   <node name="" pkg="dvs_simulator_py" type="dvs_simulator.py" output="screen">
   
     <!-- Dataset parameters -->
-    <param name="dataset_name" value="one_textured_plane_mountain" />
+    <param name="dataset_name" value="walls_circle" />
     
     <!-- DAVIS parameters -->
-    <param name="contrast_p" value="0.15" />
+    <param name="contrast_threshold" value="0.5" />
     
-    <param name="blur_size" value="3" />
+    <param name="blur_size" value="0" />
     
-    <param name="event_streaming_rate" value="60.0" />
-    <param name="image_streaming_rate" value="40.0" />
+    <param name="event_streaming_rate" value="150.0" />
+    <param name="image_streaming_rate" value="24.0" />
     
     <param name="write_to_bag" value="True" />
-    <param name="check_optical_flow" value="False" />
     
   </node>
   
   <!-- visualization -->
-  <node name="dvs_renderer_left" pkg="dvs_renderer" type="dvs_renderer" output="screen">
+  <node name="dvs_renderer" pkg="dvs_renderer" type="dvs_renderer" output="screen">
     <param name="display_method" value="red-blue"/>
     <remap from="events" to="/dvs/events" />
     <remap from="image" to="/dvs/image_raw" />
@@ -28,7 +27,7 @@
 
 
   <!-- display -->
-  <node name="image_view_left" pkg="image_view" type="image_view">
+  <node name="image_view" pkg="image_view" type="image_view">
   	<remap from="image" to="dvs_rendering"/>
   </node>
 
