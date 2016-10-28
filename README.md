@@ -15,6 +15,8 @@ The data is stored as OpenEXR files, which contain the image data and depth maps
 
 ## What does the DAVIS simulator output?
 
+The simulator will publish to the following topics:
+
 - ``/dvs/events``: event stream
 - ``/dvs/camera_info``: camera calibration
 - ``/dvs/pose``: groundtruth transformation ``T_w_cam`` (transforms points from camera frame to world frame)
@@ -31,7 +33,7 @@ Checkout the necessary dependencies:
 
 - rpg_dvs_ros (https://github.com/uzh-rpg/rpg_dvs_ros)
 
-        git clone https://github.com/uzh-rpg/rpg_dvs_ros
+	```git clone https://github.com/uzh-rpg/rpg_dvs_ros```
 
 - OpenEXR
 
@@ -47,11 +49,11 @@ Read more about this openexr python package here: http://excamera.com/sphinx/art
 
 - Install Blender
 	
-      sudo apt-get install blender
+      ```sudo apt-get install blender```
 
 - Install Python3
 
-      sudo apt-get install python3-dev python3-numpy python3-yaml
+      ```sudo apt-get install python3-dev python3-numpy python3-yaml```
 
 In ``/usr/lib/python3/dist-packages`` you should now have a ``yaml`` and ``numpy`` folder. This path is added in the ``scripts/prepare_dataset.py``.
 
