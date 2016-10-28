@@ -62,18 +62,7 @@ Source your catkin workspace (so that ROS registers the new package ``dvs_simula
 
     source $path_to_your_catkin_ws$/devel/setup.bash
     
-    
-## Running the simulator
-
-Adjust the parameters in the launch file ``dvs_simulator.py`` (in particular the parameter ``dataset_name`` must be set), and then run the simulator:
-
-    roslaunch dvs_simulator_py dvs_simulator.launch
-    
-If the parameter ``write_to_bag`` is set to *True*, a rosbag containing the simulated data will be written in ``datasets/rosbags``.
-    
-## Rendering a full_dataset from a Blender scene
-
-If you installed Blender manually, you need first to set the path to Blender in the file ``render_dataset.py``.
+## Rendering a full dataset from a Blender scene
 
 To run the render script, set the parameters ``scene_name`` and ``dataset_name`` in the launch file ``render_dataset.launch``, and then execute the render script:
 
@@ -81,16 +70,26 @@ To run the render script, set the parameters ``scene_name`` and ``dataset_name``
     
 A new folder will be created in a sub-folder ``datasets/full_datasets/dataset_name`` containing all the necessary data to run the DVS simulator.
 
+**Note**: if you installed Blender manually (instead of using apt-get), you need first to set the path to Blender in the file ``render_dataset.py``.
+
+## Running the simulator
+
+Adjust the parameters in the launch file ``dvs_simulator.py`` (in particular the parameter ``dataset_name`` must be set), and then run the simulator:
+
+    roslaunch dvs_simulator_py dvs_simulator.launch
+    
+If the parameter ``write_to_bag`` is set to *True*, a rosbag containing the simulated data will be written in ``datasets/rosbags``.
+
 ## FAQ
 
-#### "I want to use an existing scene but be able to change the DVS parameters (contrast threshold, noise, etc.)"
+#### "I want to use an existing scene but be able to change the DVS parameters (contrast threshold, framerate of the APS, etc.)"
 
 You need to generate or download a full DVS dataset first, and then roslaunch the dvs_simulator (dataset path and DVS parameters are set in the launch file).
 
 #### "Where do I find the necessary data?"
 
-- Full DVS datasets: in the ``full_datasets`` folder.
-- Blender scenes: in the ``scenes`` folder.
+- Full DVS datasets: in the ``datasets/full_datasets`` folder.
+- Blender scenes: in the ``datasets/scenes`` folder.
 
 #### "I want to change the [camera trajectory | camera calibration | scene geometry | textures]"
 
