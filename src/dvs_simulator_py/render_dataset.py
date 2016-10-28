@@ -13,11 +13,15 @@ if __name__ == '__main__':
     
     blender_path = '/usr/bin/blender'
     workspace_dir = rospack.get_path('dvs_simulator_py')
-    dataset_dir = os.path.join(rospack.get_path('rpg_datasets'), 'DVS', 'synthetic')
+    dataset_dir = os.path.join(workspace_dir, 'datasets')
+    dataset_name = rospy.get_param('dataset_name', 'untitled')
 
-    scene_name = rospy.get_param('scene_name', 'drawings_walls')
+    scene_name = rospy.get_param('scene_name', '')
+    if not scene_name:
+        rospy.logfatal('No Blender scene name provided. Aborting.')
+        sys.exit()
+        
     scene_name += '.blend'
-    dataset_name = rospy.get_param('dataset_name', 'dvs_3walls')
     
     trajectory_path = rospy.get_param('trajectory_path', '')
 

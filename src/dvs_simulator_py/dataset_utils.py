@@ -32,43 +32,6 @@ def matrix_from_quaternion(quaternion):
         ), dtype=np.float64)
 
 
-def logmap_so3(R):
-    """Logmap at the identity.
-    Returns canonical coordinates of rotation.
-    cfo, 2015/08/13
-       
-    """   
-    R11 = R[0, 0]; R12 = R[0, 1]; R13 = R[0, 2]
-    R21 = R[1, 0]; R22 = R[1, 1]; R23 = R[1, 2]
-    R31 = R[2, 0]; R32 = R[2, 1]; R33 = R[2, 2]
-    tr = np.trace(R)
-    omega = np.empty((3,), dtype=np.float64)
-    
-    # when trace == -1, i.e., when theta = +-pi, +-3pi, +-5pi, we do something 
-    # special
-    if(np.abs(tr + 1.0) < 1e-10):
-        if(np.abs(R33 + 1.0) > 1e-10):
-            omega = (np.pi / np.sqrt(2.0 + 2.0 * R33)) * np.array([R13, R23, 1.0+R33])        
-        elif(np.abs(R22 + 1.0) > 1e-10):
-            omega = (np.pi / np.sqrt(2.0 + 2.0 * R22)) * np.array([R12, 1.0+R22, R32])
-        else:
-            omega = (np.pi / np.sqrt(2.0 + 2.0 * R11)) * np.array([1.0+R11, R21, R31])
-    else:
-        magnitude = 1.0
-        tr_3 = tr - 3.0
-        if tr_3 < -1e-7:
-            theta = np.arccos((tr - 1.0) / 2.0)
-            magnitude = theta / (2.0 * np.sin(theta))
-        else:
-            # when theta near 0, +-2pi, +-4pi, etc. (trace near 3.0)
-            # use Taylor expansion: theta \approx 1/2-(t-3)/12 + O((t-3)^2)
-            magnitude = 0.5 - tr_3 * tr_3 / 12.0;
-            
-        omega = magnitude * np.array([R32 - R23, R13 - R31, R21 - R12])
-        
-    return omega
-
-
 """ Parse a dataset folder """
 def parse_dataset(dataset_dir):
     
@@ -137,8 +100,7 @@ class Trajectory:
         self.t = np.array(times)
         self.pos = np.array(positions)
         self.quat = np.array(orientations)
-        _, self.v_b, self.w_b = linear_angular_velocity(self.t, self.pos, self.quat, 1)
-    
+        
     
     def T_w_c(self, t):
         closest_id = self.find_closest_id(t)
@@ -216,27 +178,6 @@ def extract_depth(img):
   z = np.fromstring(Z, dtype = np.float32)
   z.shape = (size[1], size[0])
   return z
-
-
-    
-    
-""" Compute linear and angular velocities along a trajectory """
-def linear_angular_velocity(t, positions, orientations, stride):
-    w_body = np.zeros((len(t)-stride, 3))
-    v_world = np.zeros((len(t)-stride, 3))
-    v_body = np.zeros((len(t)-stride, 3))
-    for i in range(0, len(t)-stride, stride):
-        dt = t[i+stride] - t[i]
-        R_wb_t = matrix_from_quaternion(orientations[i])[:3,:3]
-        R_wb_t_dt = matrix_from_quaternion(orientations[i+stride])[:3,:3]
-        
-        v_world[i,:] = 1.0 / dt * (np.array(positions[i+stride])-np.array(positions[i]))
-        v_body[i,:] = R_wb_t.transpose().dot(v_world[i,:])
-        
-        # w(t) = 1/dt * log(R_wb(t)^T * R_wb(t+dt))
-        w_body[i,:] = 1.0 / dt * logmap_so3(R_wb_t.transpose().dot(R_wb_t_dt))
-        
-    return v_world, v_body, w_body
     
 
 """ Compute horizontal and vertical gradients """
