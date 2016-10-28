@@ -23,9 +23,11 @@ The data is stored as OpenEXR files, which contain the image data and depth maps
 
 ## Compilation
 
-    cd $path_to_your_catkin_ws$/src
-    
+### Dependencies
+
 Checkout the necessary dependencies:
+
+	cd $path_to_your_catkin_ws$/src
 
 - rpg_dvs_ros (https://github.com/uzh-rpg/rpg_dvs_ros)
 
@@ -53,10 +55,9 @@ Read more about this openexr python package here: http://excamera.com/sphinx/art
 
 In ``/usr/lib/python3/dist-packages`` you should now have a ``yaml`` and ``numpy`` folder. This path is added in the ``scripts/prepare_dataset.py``.
 
+### Building the simulator
 
-Build the necessary packages:
-
-    catkin build dvs_msgs
+    catkin build dvs_simulator_py
     
 Source your catkin workspace (so that ROS registers the new package ``dvs_simulator_py``):
 
@@ -67,6 +68,8 @@ Source your catkin workspace (so that ROS registers the new package ``dvs_simula
 To run the render script, set the parameters ``scene_name`` and ``dataset_name`` in the launch file ``render_dataset.launch``, and then execute the render script:
 
     roslaunch dvs_simulator_py render_dataset.launch
+    
+An example scene ``example.blend`` is provided for you to get started with.
     
 A new folder will be created in a sub-folder ``datasets/full_datasets/dataset_name`` containing all the necessary data to run the DVS simulator.
 
