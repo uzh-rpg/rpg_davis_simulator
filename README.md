@@ -15,11 +15,11 @@ The data is stored as OpenEXR files, which contain the image data and depth maps
 
 ## What does the DAVIS simulator output?
 
-- /dvs/events: event stream
-- /dvs/camera_info: camera calibration
-- /dvs/pose: groundtruth transformation T_w_cam (transforms points from camera frame to world frame)
-- /dvs/image_raw: intensity image (grayscale, 8bits)
-- /dvs/depth_map: depth map (32bits floating-point)
+- ``/dvs/events``: event stream
+- ``/dvs/camera_info``: camera calibration
+- ``/dvs/pose``: groundtruth transformation ``T_w_cam`` (transforms points from camera frame to world frame)
+- ``/dvs/image_raw``: intensity image (grayscale, 8bits)
+- ``/dvs/depth_map``: depth map (32bits floating-point)
 
 ## Compilation
 
