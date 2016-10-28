@@ -30,38 +30,56 @@ Checkout the necessary dependencies:
 - rpg_dvs_ros (https://github.com/uzh-rpg/rpg_dvs_ros)
 
         git clone https://github.com/uzh-rpg/rpg_dvs_ros
-        
+
 - OpenEXR
 
+We export images as EXR files because this format conveniently packages both the color and depth information with floating point accuracy. In order to read OpenEXR with python we need to install the following packages:
 
+    sudo apt-get install libopenexr-dev
+    cd $path_to_your_catkin_ws$/src
+    wget http://excamera.com/files/OpenEXR-1.2.0.tar.gz -O - | tar -xz
+    cd OpenEXR-1.2.0
+    sudo python setup.py install
 
-- Python3 (if you intend to render your own scenes only)
+Read more about this openexr python package here: http://excamera.com/sphinx/articles-openexr.html  
+
+- Install Blender
+	
+    sudo apt-get install blender
+
+- Install Python3
+
+    sudo apt-get install python3-dev python3-numpy python3-yaml
+
+In ``/usr/lib/python3/dist-packages`` you should now have a ``yaml`` and ``numpy`` folder. This path is added in the ``scripts/prepare_dataset.py``.
 
 
 Build the necessary packages:
 
     catkin build dvs_msgs
     
-Source your catkin workspace:
+Source your catkin workspace (so that ROS registers the new package ``dvs_simulator_py``):
 
     source $path_to_your_catkin_ws$/devel/setup.bash
     
     
 ## Running the simulator
 
-Adjust the parameters in the launch file *dvs_simulator.py* (in particular the parameter *dataset_name* must be set), and then run the simulator:
+Adjust the parameters in the launch file ``dvs_simulator.py`` (in particular the parameter ``dataset_name`` must be set), and then run the simulator:
 
     roslaunch dvs_simulator_py dvs_simulator.launch
     
+If the parameter ``write_to_bag`` is set to *True*, a rosbag containing the simulated data will be written in ``datasets/rosbags``.
     
 ## Rendering a full_dataset from a Blender scene
 
-If you installed Blender manually, you need first to set the path to Blender in the file *render_dataset.py*.
+If you installed Blender manually, you need first to set the path to Blender in the file ``render_dataset.py``.
 
-To run the render script, set the parameters *scene_name* and *dataset_name* in the launch file *render_dataset.launch*, and then execute the render script:
+To run the render script, set the parameters ``scene_name`` and ``dataset_name`` in the launch file ``render_dataset.launch``, and then execute the render script:
+
     roslaunch dvs_simulator_py render_dataset.launch
     
-A new folder will be created in a sub-folder *datasets/full_datasets/dataset_name* containing all the necessary data to run the DVS simulator.
+A new folder will be created in a sub-folder ``datasets/full_datasets/dataset_name`` containing all the necessary data to run the DVS simulator.
 
 ## FAQ
 
@@ -71,14 +89,14 @@ You need to generate or download a full DVS dataset first, and then roslaunch th
 
 #### "Where do I find the necessary data?"
 
-- Full DVS datasets: in the *full_datasets/* folder.
-- Blender scenes: in the *scenes/* folder.
+- Full DVS datasets: in the ``full_datasets`` folder.
+- Blender scenes: in the ``scenes`` folder.
 
 #### "I want to change the [camera trajectory | camera calibration | scene geometry | textures]"
 
-You need to change this directly in the Blender scene and then render the dataset again using render_dataset.py to produce a full dataset. You will then run the simulator on this new full dataset.
+You need to change this directly in the Blender scene and then render the dataset again using ``render_dataset.py`` to produce a full dataset. You will then run the simulator on this new full dataset.
 
-*Note:* you can provide the camera trajectory to render_dataset.py as a text file (with the argument 'trajectory_path' in the launch file)
+*Note:* you can provide the camera trajectory to ``render_dataset.py`` as a text file (with the argument 'trajectory_path' in the launch file)
 
 #### "I want to create a new DVS dataset"
 

@@ -14,7 +14,6 @@
     <param name="image_streaming_rate" value="100.0" />
     
     <param name="write_to_bag" value="True" />
-    <param name="check_optical_flow" value="False" />
     
   </node>
   
