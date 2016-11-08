@@ -21,17 +21,9 @@ from cv_bridge import CvBridge, CvBridgeError
 
 class DvsSimulator:
     
-    def __init__(self, initial_time, initial_values, Cp, Cm, sigp, sigm):
-        assert(Cp > 0)
-        assert(Cm > 0)
-        assert(sigp >= 0)
-        assert(sigm >= 0)
-        self.C = {}
-        self.C[+1] = Cp
-        self.C[-1] = Cm
-        self.sig = {}
-        self.sig[+1] = sigp
-        self.sig[-1] = sigm
+    def __init__(self, initial_time, initial_values, C):
+        assert(C > 0)
+        self.C = C
         assert(initial_values.shape[0] > 0)
         assert(initial_values.shape[1] > 0)
         self.height = initial_values.shape[0]
@@ -55,6 +47,7 @@ class DvsSimulator:
                 It_dt = It_dt_array[v,u]
                 previous_crossing = self.reference_values[v,u]
                 
+                
                 tol = 1e-6
                 if math.fabs(It-It_dt) > tol: 
                     
@@ -64,9 +57,7 @@ class DvsSimulator:
                     all_crossings_found = False
                     cur_crossing = previous_crossing
                     while not all_crossings_found:
-                        muC = polarity * self.C[polarity]
-                        delta = muC
-                        cur_crossing += delta
+                        cur_crossing += polarity * self.C
                         if polarity > 0:
                             if cur_crossing > It and cur_crossing <= It_dt:
                                 list_crossings.append(cur_crossing)
@@ -134,12 +125,7 @@ def make_event(x, y, ts, pol):
     e.ts = rospy.Time(secs=ts)
     e.polarity = pol
     return e
-
-
-def add_noise(img, sigma):
-    img_noisy = img.copy()
-    img_noisy += np.random.normal(loc=0.0, scale=sigma, size=img.shape)
-    return img_noisy
+  
 
 
 if __name__ == '__main__':
@@ -158,10 +144,6 @@ if __name__ == '__main__':
     
     C = rospy.get_param('contrast_threshold', 0.15)
     blur_size = rospy.get_param('blur_size', 0)
-    
-#    sigma = sigp
-    
-    srgb = False
     
     event_streaming_rate = rospy.get_param('event_streaming_rate', 300)
     image_streaming_rate = rospy.get_param('image_streaming_rate', 24)
@@ -202,7 +184,7 @@ if __name__ == '__main__':
     # Initialize DVS
     exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[0]))
     
-    img = dataset_utils.extract_grayscale(exr_img, srgb)
+    img = dataset_utils.extract_grayscale(exr_img)
     
     if blur_size > 0:
         img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
@@ -273,7 +255,7 @@ if __name__ == '__main__':
             bag.write(topic='/dvs/camera_info', msg=camera_info_msg, t=timestamp)
         
         exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[frame_id]))
-        img = dataset_utils.extract_grayscale(exr_img, srgb)
+        img = dataset_utils.extract_grayscale(exr_img)
         
         if blur_size > 0:
             img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
@@ -309,7 +291,6 @@ if __name__ == '__main__':
         
         # compute events for this frame
         img = dataset_utils.safe_log(img)
-#        img_noisy = add_noise(img, sigma)
         current_events = sim.update(timestamp.to_sec(), img)
         events += current_events
         
@@ -333,3 +314,4 @@ if __name__ == '__main__':
         bag.close()
         rospy.loginfo('Finished writing rosbag')
     
+

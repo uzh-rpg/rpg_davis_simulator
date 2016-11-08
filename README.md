@@ -67,11 +67,11 @@ Source your catkin workspace (so that ROS registers the new package ``dvs_simula
     
 ## Rendering a full dataset from a Blender scene
 
-To run the render script, set the parameters ``scene_name`` and ``dataset_name`` in the launch file ``render_dataset.launch``, and then execute the render script:
+Two example launch files ``3walls_render.launch`` and ``3planes_render.launch`` are provided. To launch a rendering, use the following command:
 
-    roslaunch dvs_simulator_py render_dataset.launch
+    roslaunch dvs_simulator_py 3walls_render.launch
     
-An example scene ``example.blend`` is provided for you to get started with.
+Two example Blender scenes ``3walls.blend`` and ``3planes.blend`` are provided for you to get started with. They are the scenes we used to generate the simulated data in the paper.
     
 A new folder will be created in a sub-folder ``datasets/full_datasets/dataset_name`` containing all the necessary data to run the DVS simulator.
 
@@ -79,9 +79,9 @@ A new folder will be created in a sub-folder ``datasets/full_datasets/dataset_na
 
 ## Running the simulator
 
-Adjust the parameters in the launch file ``dvs_simulator.py`` (in particular the parameter ``dataset_name`` must be set), and then run the simulator:
+Two example launch files ``3walls_simulate.launch`` and ``3planes_simulate.launch`` are provided. They implement the parameters we used to generate the simulated data presented in the paper. You can launch the simulation as follows:
 
-    roslaunch dvs_simulator_py dvs_simulator.launch
+    roslaunch dvs_simulator_py 3walls_simulate.launch
     
 If the parameter ``write_to_bag`` is set to *True*, a rosbag containing the simulated data will be written in ``datasets/rosbags``.
 
@@ -100,7 +100,7 @@ You need to generate or download a full DVS dataset first, and then roslaunch th
 
 You need to change this directly in the Blender scene and then render the dataset again using ``render_dataset.py`` to produce a full dataset. You will then run the simulator on this new full dataset.
 
-*Note:* you can provide the camera trajectory to ``render_dataset.py`` as a text file (with the argument 'trajectory_path' in the launch file)
+*Note:* you can provide the camera trajectory to ``render_dataset.py`` as a text file (with the argument 'trajectory_path' in the launch file, as illustrated in the launch file ``3planes_render.launch``.
 
 #### "I want to create a new DVS dataset"
 
