@@ -5,9 +5,31 @@ import cv2
 import OpenEXR
 import Imath
 import numpy as np
-from vikit_py import transformations as transformations
-from vikit_py import pinhole_camera  
-from math import fabs
+from math import fabs, sqrt
+
+# epsilon for testing whether a number is close to zero
+_EPS = np.finfo(float).eps * 4.0
+
+def matrix_from_quaternion(quaternion):
+    """Return homogeneous rotation matrix from quaternion.
+
+    >>> R = quaternion_matrix([0.06146124, 0, 0, 0.99810947])
+    >>> numpy.allclose(R, rotation_matrix(0.123, (1, 0, 0)))
+    True
+
+    """
+    q = np.array(quaternion[:4], dtype=np.float64, copy=True)
+    nq = np.dot(q, q)
+    if nq < _EPS:
+        return np.identity(4)
+    q *= sqrt(2.0 / nq)
+    q = np.outer(q, q)
+    return np.array((
+        (1.0-q[1, 1]-q[2, 2],     q[0, 1]-q[2, 3],     q[0, 2]+q[1, 3], 0.0),
+        (    q[0, 1]+q[2, 3], 1.0-q[0, 0]-q[2, 2],     q[1, 2]-q[0, 3], 0.0),
+        (    q[0, 2]-q[1, 3],     q[1, 2]+q[0, 3], 1.0-q[0, 0]-q[1, 1], 0.0),
+        (                0.0,                 0.0,                 0.0, 1.0)
+        ), dtype=np.float64)
 
 
 """ Parse a dataset folder """
@@ -47,7 +69,7 @@ def parse_dataset(dataset_dir):
     cx = cam_data['cam_cx']
     cy = cam_data['cam_cy']
     
-    cam = pinhole_camera.PinholeCamera(width, height, fx, fy, cx, cy)
+    cam = [width, height, fx, fy, cx, cy]
         
     return t, img_paths, positions, orientations, cam
    
@@ -91,12 +113,11 @@ class Trajectory:
         self.t = np.array(times)
         self.pos = np.array(positions)
         self.quat = np.array(orientations)
-        _, self.v_b, self.w_b = linear_angular_velocity(self.t, self.pos, self.quat, 1)
-    
+        
     
     def T_w_c(self, t):
         closest_id = self.find_closest_id(t)
-        T_w_c = transformations.matrix_from_quaternion(self.quat[closest_id])
+        T_w_c = matrix_from_quaternion(self.quat[closest_id])
         T_w_c[:3,3] = self.pos[closest_id]
         return T_w_c
         
@@ -110,7 +131,7 @@ class Trajectory:
    
    
    
-""" Log with a small offset to allow for taking the log of zero"""
+""" Log with a small offset to avoid problems at zero"""
 def safe_log(img):
     eps = 0.001
     return np.log(eps + img)
@@ -173,27 +194,6 @@ def extract_depth(img):
   z = np.fromstring(Z, dtype = np.float32)
   z.shape = (size[1], size[0])
   return z
-
-
-    
-    
-""" Compute linear and angular velocities along a trajectory """
-def linear_angular_velocity(t, positions, orientations, stride):
-    w_body = np.zeros((len(t)-stride, 3))
-    v_world = np.zeros((len(t)-stride, 3))
-    v_body = np.zeros((len(t)-stride, 3))
-    for i in range(0, len(t)-stride, stride):
-        dt = t[i+stride] - t[i]
-        R_wb_t = transformations.matrix_from_quaternion(orientations[i])[:3,:3]
-        R_wb_t_dt = transformations.matrix_from_quaternion(orientations[i+stride])[:3,:3]
-        
-        v_world[i,:] = 1.0 / dt * (np.array(positions[i+stride])-np.array(positions[i]))
-        v_body[i,:] = R_wb_t.transpose().dot(v_world[i,:])
-        
-        # w(t) = 1/dt * log(R_wb(t)^T * R_wb(t+dt))
-        w_body[i,:] = 1.0 / dt * transformations.logmap_so3(R_wb_t.transpose().dot(R_wb_t_dt))
-        
-    return v_world, v_body, w_body
     
 
 """ Compute horizontal and vertical gradients """
