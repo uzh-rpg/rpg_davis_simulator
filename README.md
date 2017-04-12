@@ -13,6 +13,15 @@ The data is stored as OpenEXR files, which contain the image data and depth maps
 
 *Note:* The intensity images are encoded in the linear color space (as opposed to sRGB color space). This is because the DVS work directly with irradiance values. It's important that the intensity images are encoded with floating-point accuracy to simulate correctly the high dynamic range of the DVS.
 
+### Publication
+
+If you use this software in an academic context, please cite the following publication:  
+> E. Mueggler, H. Rebecq, G. Gallego, T. Delbruck, D. Scaramuzza:  
+> **The Event-Camera Dataset and Simulator: Event-based Data for Pose Estimation, Visual Odometry, and SLAM.**  
+> International Journal of Robotics Research, Vol. 36, Issue 2, pages 142-149, Feb. 2017.  
+> [PDF (arXiv)](https://arxiv.org/pdf/1610.08336.pdf)
+
+
 ## What does the DAVIS simulator output?
 
 The simulator will publish to the following topics:
