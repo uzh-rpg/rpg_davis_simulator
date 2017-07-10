@@ -4,7 +4,7 @@
 <node name="dvs_renderer" pkg="dvs_renderer" type="dvs_renderer" output="screen">
   <param name="display_method" value="red-blue"/>
   <remap from="events" to="/dvs/events" />
-  <remap from="image" to="/image/gray" />
+  <remap from="image" to="/dvs/gray" />
   <remap from="dvs_rendering" to="dvs_rendering" />
 </node>
 

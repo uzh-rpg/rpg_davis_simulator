@@ -25,6 +25,7 @@ class StreamingStateWrapper:
 
         # publishers
         self.event_pub = rospy.Publisher("/dvs/events", EventArray, queue_size=0)
+        self.img_pub = rospy.Publisher("/dvs/gray", Image, queue_size=0)
 
         # subscribers
         self.subscriber = rospy.Subscriber("/image/gray",
@@ -68,7 +69,7 @@ class StreamingStateWrapper:
             if timestamp - self.last_pub_event_timestamp > 0:
                 self.events = sorted(self.events, key=lambda e: e.ts)
                 event_array = EventArray()
-                event_array.header.stamp = timestamp
+                event_array.header.stamp = header.stamp
                 event_array.width = self.width
                 event_array.height = self.height
                 event_array.events = self.events
@@ -76,6 +77,7 @@ class StreamingStateWrapper:
                 # clear all accumulated events on publish
                 rospy.loginfo("Publishing %s events to /dvs/events", len(self.events))
                 self.event_pub.publish(event_array)
+                self.img_pub.publish(ros_data)
                 self.events = []
 
 
