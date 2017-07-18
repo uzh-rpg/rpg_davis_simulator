@@ -9,6 +9,7 @@ from cv_bridge import CvBridge, CvBridgeError
 from dvs_msgs.msg import Event, EventArray
 from dvs_simulator_py import dataset_utils
 from dvs_simulator import DvsSimulator
+from std_msgs.msg import String, Empty
 
 class StreamingStateWrapper:
     def __init__(self):
@@ -27,12 +28,15 @@ class StreamingStateWrapper:
         self.event_pub = rospy.Publisher("/dvs/events", EventArray, queue_size=0)
         self.img_pub = rospy.Publisher("/dvs/gray", Image, queue_size=0)
 
+        self.img_requester = rospy.Publisher("/requests/nextimage", Empty, queue_size=0)
+
         # subscribers
         self.subscriber = rospy.Subscriber("/image/gray",
                 Image, self.callback,  queue_size = None)
 
 
     def callback(self, ros_data):
+        self.img_requester.publish()
         header = ros_data.header
         timestamp = header.stamp.to_sec()
 
@@ -67,6 +71,7 @@ class StreamingStateWrapper:
                 timestamp - self.last_pub_event_timestamp)
 
             if timestamp - self.last_pub_event_timestamp > 0:
+                self.img_pub.publish(ros_data)
                 self.events = sorted(self.events, key=lambda e: e.ts)
                 event_array = EventArray()
                 event_array.header.stamp = header.stamp
@@ -77,8 +82,8 @@ class StreamingStateWrapper:
                 # clear all accumulated events on publish
                 rospy.loginfo("Publishing %s events to /dvs/events", len(self.events))
                 self.event_pub.publish(event_array)
-                self.img_pub.publish(ros_data)
                 self.events = []
+
 
 
 def main():

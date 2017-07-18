@@ -1,3 +1,4 @@
 *.pyc
 *.blend1
 datasets/full_datasets/*
+datasets/airsim/*
