@@ -185,6 +185,8 @@ if __name__ == '__main__':
     exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[0]))
 
     img = dataset_utils.extract_grayscale(exr_img)
+    uint8_img = np.uint8(img * 255.0);
+    img = np.float32(uint8_img * 1/255.0);
 
     if blur_size > 0:
         img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
@@ -205,7 +207,7 @@ if __name__ == '__main__':
         bag.write(topic='/dvs/contrast_threshold', msg=Float32(C), t=init_time)
         bag.write(topic='/dvs/blur_size', msg=Int16(blur_size), t=init_time)
 
-        img_msg = bridge.cv2_to_imgmsg(np.uint8(img * 255.0), 'mono8')
+        img_msg = bridge.cv2_to_imgmsg(uint8_img, 'mono8')
         img_msg.header.stamp = init_time
         try:
             image_pub.publish(img_msg)
@@ -256,15 +258,17 @@ if __name__ == '__main__':
 
         exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[frame_id]))
         img = dataset_utils.extract_grayscale(exr_img)
+        uint8_img = np.uint8(img * 255.0);
+        img = np.float32(uint8_img * 1/255.0);
 
         if blur_size > 0:
             img = cv2.GaussianBlur(img, (blur_size,blur_size), 0)
 
-        # publish every image, bypass streaming rate: 
+        # publish every image, bypass streaming rate:
         # if timestamp - last_pub_img_timestamp > delta_image or timestamp == init_time:
         # publish image_raw
         if write_to_bag or image_pub.get_num_connections > 0:
-            img_msg = bridge.cv2_to_imgmsg(np.uint8(img * 255.0), 'mono8')
+            img_msg = bridge.cv2_to_imgmsg(uint8_img, 'mono8')
             img_msg.header.stamp = timestamp
             try:
                 image_pub.publish(img_msg)
@@ -295,20 +299,20 @@ if __name__ == '__main__':
         events += current_events
 
         # publish events
-        if timestamp - last_pub_event_timestamp > delta_event:
-            events = sorted(events, key=lambda e: e.ts)
-            event_array = EventArray()
-            event_array.header.stamp = timestamp
-            event_array.width = cam[0]
-            event_array.height = cam[1]
-            event_array.events = events
-            event_pub.publish(event_array)
+        # if timestamp - last_pub_event_timestamp > delta_event:
+        events = sorted(events, key=lambda e: e.ts)
+        event_array = EventArray()
+        event_array.header.stamp = timestamp
+        event_array.width = cam[0]
+        event_array.height = cam[1]
+        event_array.events = events
+        event_pub.publish(event_array)
 
-            if write_to_bag:
-                bag.write(topic='/dvs/events', msg=event_array, t=timestamp)
+        if write_to_bag:
+            bag.write(topic='/dvs/events', msg=event_array, t=timestamp)
 
-            events = []
-            last_pub_event_timestamp = timestamp
+        events = []
+        last_pub_event_timestamp = timestamp
 
     if write_to_bag:
         bag.close()

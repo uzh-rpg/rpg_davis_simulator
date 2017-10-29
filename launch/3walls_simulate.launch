@@ -13,7 +13,7 @@
     <param name="event_streaming_rate" value="60.0" />
     <param name="image_streaming_rate" value="40.0" />
 
-    <param name="write_to_bag" value="False" />
+    <param name="write_to_bag" value="True" />
 
   </node>
 
