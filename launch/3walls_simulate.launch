@@ -1,22 +1,22 @@
   <launch>
   <!-- DVS simulator using a sequence of images -->
   <node name="" pkg="dvs_simulator_py" type="dvs_simulator.py" output="screen">
-  
+
     <!-- Dataset parameters -->
     <param name="dataset_name" value="3walls" />
-    
+
     <!-- DAVIS parameters -->
-    <param name="contrast_threshold" value="0.2" />
-    
+    <param name="contrast_threshold" value="0.45" />
+
     <param name="blur_size" value="3" />
-    
+
     <param name="event_streaming_rate" value="60.0" />
     <param name="image_streaming_rate" value="40.0" />
-    
-    <param name="write_to_bag" value="True" />
-    
+
+    <param name="write_to_bag" value="False" />
+
   </node>
-  
+
   <!-- visualization -->
   <node name="dvs_renderer" pkg="dvs_renderer" type="dvs_renderer" output="screen">
     <param name="display_method" value="red-blue"/>
