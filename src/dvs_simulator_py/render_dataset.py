@@ -15,6 +15,7 @@ if __name__ == '__main__':
     workspace_dir = rospack.get_path('dvs_simulator_py')
     dataset_dir = os.path.join(workspace_dir, 'datasets')
     dataset_name = rospy.get_param('dataset_name', 'untitled')
+    camera_name = rospy.get_param('camera_name', 'Camera')
 
     scene_name = rospy.get_param('scene_name', '')
     if not scene_name:
@@ -34,6 +35,7 @@ if __name__ == '__main__':
     
     os.environ['SYNTHESIZER_DATASET_DIR'] = dataset_dir
     os.environ['SYNTHESIZER_DATASET_NAME'] = dataset_name
+    os.environ['SYNTHESIZER_CAMERA_NAME'] = camera_name
     
     blender_cmd = [blender_path, 
               '-b', os.path.join(dataset_dir, 'scenes', scene_name)] + python_scripts_cmd + ['-a']

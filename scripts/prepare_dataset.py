@@ -2,6 +2,7 @@
 
 import os
 import os.path
+from os.path import join
 import sys
 sys.path.append('/usr/lib/python3/dist-packages') # Add python3 packages to the environment
 import mathutils
@@ -20,13 +21,15 @@ def goto_frame(scene, k):
 
 dataset_dir = os.environ['SYNTHESIZER_DATASET_DIR']
 dataset_name = os.environ['SYNTHESIZER_DATASET_NAME']
+camera_name = os.environ['SYNTHESIZER_CAMERA_NAME']
 
-cam = bpy.data.objects['Camera']
+cam = bpy.data.objects[camera_name]
 scene = bpy.data.scenes['Scene']
+scene.camera = cam # select the user defined camera to render the scene
 
 data_dir = os.path.join(dataset_dir, 'full_datasets', dataset_name, 'data')
 
-scene.render.filepath = '%s/exr/' % data_dir
+scene.render.filepath = join(data_dir, 'exr/')
 scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = 'OPEN_EXR'
 scene.render.image_settings.exr_codec = 'PIZ'
@@ -49,11 +52,11 @@ T_cam_blender = T_blender_cam
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)
     
-if not os.path.exists('%s/exr' % data_dir):
-    os.makedirs('%s/exr' % data_dir)
+if not os.path.exists(join(data_dir, 'exr')):
+    os.makedirs(join(data_dir, 'exr'))
     
 # Write camera information to a YAML file
-cam_file = open('%s/camera.yaml' % data_dir, 'w')
+cam_file = open(join(data_dir, 'camera.yaml'), 'w')
 cam_data = {}
 cam_data['cam_width'] = scene.render.resolution_x
 cam_data['cam_height'] = scene.render.resolution_y
@@ -65,9 +68,9 @@ cam_data['cam_cy'] = scene.render.resolution_y / 2.0
 yaml.dump(cam_data, cam_file)
 
 # Write images.txt and trajectory.txt
-images_file = open('%s/images.txt' % data_dir, 'w')
-groundtruth_file = open('%s/trajectory.txt' % data_dir, 'w')
-info_file = open('%s/info.txt' % data_dir, 'w')
+images_file = open(join(data_dir, 'images.txt'), 'w')
+groundtruth_file = open(join(data_dir, 'trajectory.txt'), 'w')
+info_file = open(join(data_dir, 'info.txt'), 'w')
 
 timestamp = 0.0
 for k in range(first_frame, last_frame+1):

@@ -10,6 +10,7 @@ import time
 import cv2
 import math
 import sys
+from os.path import join
 
 from dvs_simulator_py import dataset_utils
 from std_msgs.msg import Float32, Int16
@@ -138,6 +139,8 @@ if __name__ == '__main__':
     # Load simulator parameters
     dataset_name = rospy.get_param('dataset_name', '')
     
+    ns = rospy.get_param('ns', '/dvs')
+
     if not dataset_name:
         rospy.logfatal('No dataset name provided. Aborting')
         sys.exit()
@@ -149,10 +152,10 @@ if __name__ == '__main__':
     image_streaming_rate = rospy.get_param('image_streaming_rate', 24)
     write_to_bag = rospy.get_param('write_to_bag', False)
     
-    rospy.loginfo('Dataset name: %s' % dataset_name)
-    rospy.loginfo('Contrast threshold: %f' % C)
-    rospy.loginfo('Event streaming rate: %d packets / s' % event_streaming_rate)
-    rospy.loginfo('Image streaming rate: %d images / s' % image_streaming_rate)
+    rospy.loginfo('Dataset name: {}'.format(dataset_name))
+    rospy.loginfo('Contrast threshold: {}'.format(C))
+    rospy.loginfo('Event streaming rate: {} packets / s' .format(event_streaming_rate))
+    rospy.loginfo('Image streaming rate: {} images / s'.format(image_streaming_rate))
     
     delta_event = rospy.Duration(1.0 / event_streaming_rate)
     delta_image = rospy.Duration(1.0 / image_streaming_rate)
@@ -167,22 +170,28 @@ if __name__ == '__main__':
     times, img_paths, positions, orientations, cam = dataset_utils.parse_dataset(dataset_dir)   
     camera_info_msg = make_camera_msg(cam)
     
+    depthmap_topic = '{}/depthmap'.format(ns)
+    image_topic = '{}/image_raw'.format(ns)
+    pose_topic = '{}/pose'.format(ns)
+    camera_info_topic = '{}/camera_info'.format(ns)
+    event_topic = '{}/events'.format(ns)
+
     # Prepare publishers
     bridge = CvBridge()
-    depthmap_pub = rospy.Publisher("/dvs/depthmap", Image, queue_size=0)
-    image_pub = rospy.Publisher("/dvs/image_raw", Image, queue_size=0)
-    pose_pub = rospy.Publisher("/dvs/pose", PoseStamped, queue_size=0)
-    camera_info_pub = rospy.Publisher("/dvs/camera_info", CameraInfo, queue_size=0)
-    event_pub = rospy.Publisher("/dvs/events", EventArray, queue_size=0)
+    depthmap_pub = rospy.Publisher(depthmap_topic, Image, queue_size=0)
+    image_pub = rospy.Publisher(image_topic, Image, queue_size=0)
+    pose_pub = rospy.Publisher(pose_topic, PoseStamped, queue_size=0)
+    camera_info_pub = rospy.Publisher(camera_info_topic, CameraInfo, queue_size=0)
+    event_pub = rospy.Publisher(event_topic, EventArray, queue_size=0)
     
     if write_to_bag:
         bag_dir = os.path.join(package_dir, 'datasets', 'rosbags')
         if not os.path.exists(bag_dir):
             os.makedirs(bag_dir)
-        bag = rosbag.Bag('%s/%s-%s.bag' % (bag_dir, dataset_name, time.strftime("%Y%m%d-%H%M%S")), 'w')
+        bag = rosbag.Bag(join(bag_dir, '{}-{}.bag'.format(dataset_name, time.strftime("%Y%m%d-%H%M%S"))), 'w')
     
     # Initialize DVS
-    exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[0]))
+    exr_img = OpenEXR.InputFile(join(dataset_dir, img_paths[0]))
     
     img = dataset_utils.extract_grayscale(exr_img)
     
@@ -200,10 +209,10 @@ if __name__ == '__main__':
     
     # Publish initial pose, image and depthmap
     if write_to_bag:
-        bag.write(topic='/dvs/pose', msg=make_pose_msg(positions[0], orientations[0], init_time), t=init_time)        
+        bag.write(topic=pose_topic, msg=make_pose_msg(positions[0], orientations[0], init_time), t=init_time)
         
-        bag.write(topic='/dvs/contrast_threshold', msg=Float32(C), t=init_time)
-        bag.write(topic='/dvs/blur_size', msg=Int16(blur_size), t=init_time)
+        bag.write(topic='{}/contrast_threshold'.format(ns), msg=Float32(C), t=init_time)
+        bag.write(topic='{}/blur_size'.format(ns), msg=Int16(blur_size), t=init_time)
         
         img_msg = bridge.cv2_to_imgmsg(np.uint8(img * 255.0), 'mono8')
         img_msg.header.stamp = init_time
@@ -212,7 +221,7 @@ if __name__ == '__main__':
         except CvBridgeError as e:
             print(e)
                 
-        bag.write(topic='/dvs/image_raw', msg=img_msg, t=init_time)
+        bag.write(topic=image_topic, msg=img_msg, t=init_time)
         
         z = dataset_utils.extract_depth(exr_img)
         depth_msg = bridge.cv2_to_imgmsg(z, '32FC1')
@@ -222,7 +231,7 @@ if __name__ == '__main__':
         except CvBridgeError as e:
             print(e)
             
-        bag.write(topic='/dvs/depthmap', msg=depth_msg, t=init_time)
+        bag.write(topic=depthmap_topic, msg=depth_msg, t=init_time)
            
     if not write_to_bag:
         # Do not start publishing events if no one is listening
@@ -238,23 +247,23 @@ if __name__ == '__main__':
         
         timestamp = rospy.Time(times[frame_id])
         
-        rospy.loginfo('Processing frame at time: %f' % timestamp.to_sec())
+        rospy.loginfo('Processing frame at time: {}'.format(timestamp.to_sec()))
             
         # publish pose
         if pose_pub.get_num_connections() > 0:
             pose_pub.publish(make_pose_msg(positions[frame_id], orientations[frame_id], timestamp))
         
         if write_to_bag:
-            bag.write(topic='/dvs/pose', msg=make_pose_msg(positions[frame_id], orientations[frame_id], timestamp), t=timestamp)
+            bag.write(topic=pose_topic, msg=make_pose_msg(positions[frame_id], orientations[frame_id], timestamp), t=timestamp)
             
         # publish camera_info
         if camera_info_pub.get_num_connections() > 0:
             camera_info_pub.publish(camera_info_msg)
             
         if write_to_bag:
-            bag.write(topic='/dvs/camera_info', msg=camera_info_msg, t=timestamp)
+            bag.write(topic=camera_info_topic, msg=camera_info_msg, t=timestamp)
         
-        exr_img = OpenEXR.InputFile('%s/%s' % (dataset_dir, img_paths[frame_id]))
+        exr_img = OpenEXR.InputFile(join(dataset_dir, img_paths[frame_id]))
         img = dataset_utils.extract_grayscale(exr_img)
         
         if blur_size > 0:
@@ -272,7 +281,7 @@ if __name__ == '__main__':
                     print(e)
                 
                 if write_to_bag:
-                    bag.write(topic='/dvs/image_raw', msg=img_msg, t=timestamp)
+                    bag.write(topic=image_topic, msg=img_msg, t=timestamp)
                     
             # publish depth_map
             if write_to_bag or depthmap_pub.get_num_connections() > 0:
@@ -285,7 +294,7 @@ if __name__ == '__main__':
                         print(e)
  
                 if write_to_bag:
-                    bag.write(topic='/dvs/depthmap', msg=depth_msg, t=timestamp)
+                    bag.write(topic=depthmap_topic, msg=depth_msg, t=timestamp)
                 
             last_pub_img_timestamp = timestamp
         
@@ -305,12 +314,12 @@ if __name__ == '__main__':
             event_pub.publish(event_array)
             
             if write_to_bag:
-                bag.write(topic='/dvs/events', msg=event_array, t=timestamp)
+                bag.write(topic=event_topic, msg=event_array, t=timestamp)
             
             events = []
             last_pub_event_timestamp = timestamp
             
-    if write_to_bag:       
+    if write_to_bag:
         bag.close()
         rospy.loginfo('Finished writing rosbag')
     
