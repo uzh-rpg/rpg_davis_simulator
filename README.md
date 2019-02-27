@@ -1,5 +1,7 @@
 # DAVIS simulator
 
+## We have released a much more powerful version of this event camera simulator. Check it out [here](https://github.com/uzh-rpg/rpg_esim).
+
 ## How does it work?
 
 <img src="pipeline.png" width="850">
