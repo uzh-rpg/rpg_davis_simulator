@@ -61,7 +61,7 @@ cam_data = {}
 cam_data['cam_width'] = scene.render.resolution_x
 cam_data['cam_height'] = scene.render.resolution_y
 cam_data['cam_fx'] = fov_to_focal(scene.render.resolution_x, cam.data.angle)
-cam_data['cam_fy'] = fov_to_focal(scene.render.resolution_x, cam.data.angle)
+cam_data['cam_fy'] = fov_to_focal(scene.render.resolution_y, cam.data.angle)
 cam_data['cam_cx'] = scene.render.resolution_x / 2.0
 cam_data['cam_cy'] = scene.render.resolution_y / 2.0
 
